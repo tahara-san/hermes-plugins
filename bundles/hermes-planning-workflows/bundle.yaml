@@ -1,0 +1,21 @@
+name: hermes-planning-workflows
+version: 0.1.0
+description: Contract-first planning, execution, cleanup, simplification, Claude interactive review, and safety hooks for Hermes Agent.
+skills:
+  - skills/software-development/planning-workflows
+  - skills/software-development/plan-doc
+  - skills/software-development/plan-code
+  - skills/software-development/plan-clean
+  - skills/software-development/plan-issues
+  - skills/software-development/simplify
+  - skills/autonomous-ai-agents/claude-i
+plugins:
+  - plugins/hermes-planning-guards
+optional_dependencies:
+  skills:
+    - requesting-code-review
+    - subagent-driven-development
+    - test-driven-development
+  commands:
+    - tmux
+    - claude

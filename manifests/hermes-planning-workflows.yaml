@@ -1,0 +1,26 @@
+name: hermes-planning-workflows
+version: 0.1.0
+description: Contract-first planning workflows for Hermes Agent.
+repository: https://github.com/tahara-san/hermes-plugins
+skills:
+  required:
+    - planning-workflows
+    - plan-doc
+    - plan-code
+    - plan-clean
+    - plan-issues
+    - simplify
+    - claude-i
+  included_references:
+    - writing-plans
+plugins:
+  required:
+    - hermes-planning-guards
+optional_dependencies:
+  skills:
+    - requesting-code-review
+    - subagent-driven-development
+    - test-driven-development
+  tools:
+    - tmux
+    - claude

@@ -1,0 +1,9 @@
+[project]
+name = "hermes-plugins-repo"
+version = "0.1.0"
+description = "Repository validation package for tahara-san/hermes-plugins"
+requires-python = ">=3.10"
+
+[tool.pytest.ini_options]
+testpaths = ["tests", "plugins/hermes-planning-guards/tests"]
+pythonpath = ["plugins/hermes-planning-guards"]

@@ -1,0 +1,26 @@
+name: hermes-plugins
+version: 0.1.0
+repository: https://github.com/tahara-san/hermes-plugins
+packages:
+  - manifests/hermes-planning-workflows.yaml
+skills:
+  - path: skills/software-development/planning-workflows
+    name: planning-workflows
+  - path: skills/software-development/plan-doc
+    name: plan-doc
+  - path: skills/software-development/plan-code
+    name: plan-code
+  - path: skills/software-development/plan-clean
+    name: plan-clean
+  - path: skills/software-development/plan-issues
+    name: plan-issues
+  - path: skills/software-development/simplify
+    name: simplify
+  - path: skills/autonomous-ai-agents/claude-i
+    name: claude-i
+plugins:
+  - path: plugins/hermes-planning-guards
+    name: hermes-planning-guards
+bundles:
+  - path: bundles/hermes-planning-workflows
+    name: hermes-planning-workflows
