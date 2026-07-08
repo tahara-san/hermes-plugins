@@ -9,6 +9,7 @@ A curated set of Hermes skills and hooks for contract-first planning and executi
 - `plan-code`
 - `plan-clean`
 - `plan-issues`
+- `plan-commit`
 - `simplify`
 - `claude-i`
 - `hermes-planning-guards`
@@ -16,6 +17,7 @@ A curated set of Hermes skills and hooks for contract-first planning and executi
 ## Optional dependencies
 
 - `requesting-code-review`
+- `github-operations`
 - `subagent-driven-development`
 - `test-driven-development`
 - Claude Code CLI and `tmux` for `claude-i`

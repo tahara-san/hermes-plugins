@@ -14,6 +14,8 @@ skills:
     name: plan-clean
   - path: skills/software-development/plan-issues
     name: plan-issues
+  - path: skills/software-development/plan-commit
+    name: plan-commit
   - path: skills/software-development/simplify
     name: simplify
   - path: skills/autonomous-ai-agents/claude-i

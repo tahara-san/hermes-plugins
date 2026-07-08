@@ -1,12 +1,12 @@
 # Migrated packages
 
-This umbrella consolidates the following planning-family workflows:
+This umbrella absorbed complete package copies from:
 
-- `plan` — plan-only mode.
-- `writing-plans` — general implementation plan authoring.
-- `plan-doc` — structured task docs.
-- `plan-code` — plan execution discipline.
-- `plan-issues` — out-of-scope issue conversion.
-- `plan-clean` — task directory classification and cleanup.
+- `plan/` — plan-only mode
+- `writing-plans/` — implementation plan authoring
+- `plan-doc/` — structured task docs
+- `plan-code/` — plan execution discipline
+- `plan-issues/` — out-of-scope issue conversion
+- `plan-clean/` — task directory classification/cleanup
 
-The wrapper skills in this repository expose the most common entrypoints while keeping this umbrella as the canonical source.
+The archived originals are under `~/.hermes/skills/.archive/curator-2026-06-06-umbrella-build/`.

@@ -9,6 +9,7 @@ skills:
     - plan-code
     - plan-clean
     - plan-issues
+    - plan-commit
     - simplify
     - claude-i
   included_references:
@@ -19,6 +20,7 @@ plugins:
 optional_dependencies:
   skills:
     - requesting-code-review
+    - github-operations
     - subagent-driven-development
     - test-driven-development
   tools:

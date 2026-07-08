@@ -13,6 +13,7 @@ Contract-first planning workflows for Hermes Agent:
 - `plan-code` — user-facing wrapper for executing task docs with simplify/review/verification gates.
 - `plan-clean` — user-facing wrapper for conservative task-directory cleanup.
 - `plan-issues` — user-facing wrapper for converting out-of-scope issue logs into task plans.
+- `plan-commit` — commit/push workflow for completed plan-code tasks, including optional task-artifact cleanup.
 - `simplify` — behavior-preserving cleanup review before independent review.
 - `claude-i` — interactive Claude Code orchestration through tmux.
 - `hermes-planning-guards` — plugin hooks for `.env*` protection and out-of-scope issue reminders.

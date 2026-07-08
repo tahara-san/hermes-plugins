@@ -7,6 +7,7 @@ Preferred explicit skill invocation:
 /skill plan-code @tasks/<task-name>
 /skill plan-clean <request>
 /skill plan-issues <request>
+/skill plan-commit tasks/<task-name>
 ```
 
 If direct `/plan-doc` style commands are unavailable in a particular Hermes surface, use the generic `/skill <name>` form above.
@@ -28,6 +29,10 @@ Classifies task directories and out-of-scope issue logs. It should dry-run first
 ### `plan-issues`
 
 Converts logged out-of-scope issue files into implementation task plans. It should not fix issues inline during conversion.
+
+### `plan-commit`
+
+Commits and pushes completed `plan-code` task work on the current branch. When explicitly requested, it performs the two-step cleanup flow: first push implementation plus task artifacts, then remove the completed task directory and push that cleanup as a second commit.
 
 ### `claude-i`
 

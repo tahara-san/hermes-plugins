@@ -15,6 +15,7 @@ def test_core_package_files_exist():
         "skills/software-development/plan-code/SKILL.md",
         "skills/software-development/plan-clean/SKILL.md",
         "skills/software-development/plan-issues/SKILL.md",
+        "skills/software-development/plan-commit/SKILL.md",
         "skills/software-development/simplify/SKILL.md",
         "skills/autonomous-ai-agents/claude-i/SKILL.md",
         "plugins/hermes-planning-guards/plugin.yaml",

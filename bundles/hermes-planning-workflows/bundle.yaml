@@ -7,6 +7,7 @@ skills:
   - skills/software-development/plan-code
   - skills/software-development/plan-clean
   - skills/software-development/plan-issues
+  - skills/software-development/plan-commit
   - skills/software-development/simplify
   - skills/autonomous-ai-agents/claude-i
 plugins:
@@ -14,6 +15,7 @@ plugins:
 optional_dependencies:
   skills:
     - requesting-code-review
+    - github-operations
     - subagent-driven-development
     - test-driven-development
   commands:

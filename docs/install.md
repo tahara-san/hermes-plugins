@@ -36,6 +36,7 @@ Install it as a user plugin according to your Hermes plugin workflow. For local 
 - `plan-code`
 - `plan-clean`
 - `plan-issues`
+- `plan-commit`
 - `simplify`
 - `claude-i`
 - `hermes-planning-guards`
