@@ -1,6 +1,6 @@
 ---
 name: plan-commit
-description: Use when the user asks to commit and push an implemented plan-code task, then remove the implemented task directory and push that cleanup as a second commit on the current branch.
+description: Use when the user asks to commit and push an implemented plan-code task; by default also remove the implemented task directory and any tracked out-of-scope issue files resolved by the task, then push cleanup on the current branch.
 version: 1.0.0
 author: Hermes Agent
 license: MIT
@@ -15,10 +15,12 @@ metadata:
 
 ## Overview
 
-Use this skill for committing and pushing an implemented `tasks/<slug>/` plan-code task. There are two valid completion modes:
+Use this skill for committing and pushing an implemented `tasks/<slug>/` plan-code task. The default completion mode is now:
 
-1. **Plain commit/push** — when the user only says "commit and push", commit and push the implementation plus the task artifacts, then stop. Do **not** remove the task directory unless the user explicitly asked for cleanup or used the two-step wording.
-2. **Two-step cleanup flow** — when the user explicitly asks to remove/clean up the completed task directory after pushing, first commit and push the implementation plus task artifacts, then remove the implemented task directory, commit that deletion, and push again.
+1. **Implementation/artifact commit** — commit and push the implementation, completed task artifacts, and any exact tracked `tasks/out-of-scope-issues/...` files that the implementation resolved and therefore deleted.
+2. **Cleanup commit** — after the implementation commit is safely pushed, remove the implemented task directory, commit that deletion, and push again.
+
+Only preserve the completed task directory when the user explicitly asks to keep task artifacts in the repository. Only keep resolved out-of-scope issue files when the user explicitly says they should remain open/tracked despite the task resolving them.
 
 The target branch is the **current checked-out branch**. Do not assume `main` or `master`; the user's active development branch is often `dev` or `develop`.
 
@@ -28,16 +30,17 @@ This is a git side-effect workflow. Be conservative: inspect scope, stage only i
 
 Use when the user says things like:
 
-- `commit and push` after an implemented plan-code task is ready — use plain commit/push mode unless cleanup is explicitly requested.
+- `commit and push` after an implemented plan-code task is ready — use the default two-step flow: implementation/artifact commit, then cleanup commit removing the implemented task directory.
 - `plan-commit tasks/<slug>`
-- "commit and push this task, then remove the task dir and push again"
+- "commit and push this task"
 - "commit/push and clean up the implemented task directory"
 - "finish the task with the two-commit cleanup flow"
+- "commit but keep the task directory" — only in this explicit preservation case, skip the cleanup commit and report that artifacts remain tracked.
 
 Do **not** use for:
 
 - Plan-only work.
-- Ordinary one-commit requests where the user did not ask to remove the task directory.
+- Ordinary ad-hoc commit requests that are not tied to a completed plan-code task.
 - Dirty worktrees where intended scope cannot be separated from unrelated local edits.
 - Failed or incomplete plan-code tasks unless the user explicitly asks to commit a blocker artifact instead of a completed implementation.
 
@@ -55,9 +58,9 @@ If the user gives only a task slug, resolve it as `tasks/<slug>/` in the active 
 - Do not switch to `main`/`master` unless the user explicitly asks.
 - Do not commit or push unrelated dirty files.
 - Do not use `git add -A` or `git add .` in a dirty repository with unrelated work.
-- First commit includes the implemented code/tests and the completed task directory artifacts.
-- If the user only asked to "commit and push", stop after the first push/readback and report the task directory remains committed; do not delete it.
-- Only run the second cleanup commit when the user explicitly requested task-directory removal/cleanup, or used `plan-commit`/two-step wording.
+- First commit includes the implemented code/tests, the completed task directory artifacts, and exact tracked out-of-scope issue file deletions that this implementation resolves.
+- If the user only asked to "commit and push" for a completed plan-code task, still run the default cleanup commit after the implementation commit is pushed.
+- Skip the task-directory cleanup commit only when the user explicitly asks to preserve/keep the task artifacts.
 - Second cleanup commit removes only the implemented task directory.
 - If the task directory is currently untracked but is part of the intended completed task artifact, include it in the first commit so the second cleanup commit has a real tracked deletion.
 - If the task directory is not tracked after the first push, local removal is possible but there may be no deletion commit; report that honestly.
@@ -89,10 +92,43 @@ Classify:
 
 - in-scope implementation files;
 - in-scope task artifacts under `tasks/<slug>/`;
+- exact tracked out-of-scope issue files under `tasks/out-of-scope-issues/...` that this task resolves and should delete in the implementation commit;
 - unrelated dirty tracked files;
 - unrelated untracked task directories.
 
 If in-scope and unrelated edits overlap the same file and cannot be separated safely, stop and report the blocker.
+
+### Planning guard — out-of-scope issue tracking
+
+When commit-readiness exposes warnings, issues, code smells, bugs, skipped items, follow-ups, or potential problems outside the current task scope, do **not** silently ignore them and do **not** fix them inline unless the user explicitly asks.
+
+Log each non-exempt finding as a separate Markdown file under:
+
+```text
+tasks/out-of-scope-issues/<priority>/<YYYYMMDD>_<short-kebab>.md
+```
+
+If the issue requires human investigation or intervention, use:
+
+```text
+tasks/out-of-scope-issues/<priority>/manual/<YYYYMMDD>_<short-kebab>.md
+```
+
+Priority must be one of: `critical`, `high`, `medium`, `low`, `proposal`, `other`.
+
+Each file must contain these sections in order:
+
+```markdown
+**Issue**
+**Location**
+**Severity**
+**Context**
+**Suggested Fix**
+```
+
+Before creating a new file, check for an existing matching issue and update it instead of duplicating it. Mention logged out-of-scope issues in the final wrap-up.
+
+Exception: do not create or update out-of-scope issue files solely for GitHub Dependabot alerts/security advisory counts. Dependabot alerts are already tracked in GitHub; mention them briefly in the wrap-up only when relevant, or work from GitHub/`gh`/`npm audit` when the user explicitly asks to triage or fix them.
 
 ## Step 2 — Reconcile Task Completion Before Staging
 
@@ -117,9 +153,9 @@ grep -n '^- \[ \]' tasks/<slug>/todo.md || true
 git diff --check -- <intended paths> tasks/<slug>
 ```
 
-If task docs are stale, update them first and rerun required artifact consistency / review gates before committing rather than committing stale artifacts. In particular, final reports are often written before late consistency/pre-commit verdict artifacts exist; reconcile the final report's artifact list/review-artifact section to name the actual final canonical consistency verdicts before staging. Also check for stale pre-commit wording such as “No commit or push was performed”: if the user has now invoked `plan-commit`, rewrite that claim to scope it to pre-commit plan-code finalization and state that commit/push metadata belongs in the plan-commit final response. Remove stale active `*pending*.json` markers only after the passed verdict artifacts exist, and mark superseded intermediate deltas as historical when later deltas replaced them. Rerun artifact consistency after this wording/artifact-list reconciliation before staging. See `references/plan-commit-precommit-artifact-reconciliation.md` for the compact checklist and `references/profile-feed-commit-readiness-2026-06.md` for a concrete recovery example covering stale final-review rows, recovered delegate verdicts, generated Markdown whitespace, and unrelated untracked task directories.
+If task docs are stale, update them first and rerun required artifact consistency / review gates before committing rather than committing stale artifacts. In particular, final reports are often written before late consistency/pre-commit verdict artifacts exist; reconcile the final report's artifact list/review-artifact section to name the actual final canonical consistency verdicts before staging. Also check for stale pre-commit wording such as “No commit or push was performed”: if the user has now invoked `plan-commit`, rewrite that claim to scope it to pre-commit plan-code finalization and state that commit/push metadata belongs in the plan-commit final response. If a completed task resolves a tracked out-of-scope issue file, inspect the issue content to confirm it is the exact source issue, delete that issue file by default, include the deletion in the implementation commit (not the cleanup commit), and update the final report/artifact-consistency scope to name that resolved issue deletion before staging. Delete only exact linked/matching issue files; never sweep broad priority folders. Remove or supersede stale active pending-review markers only after the passing verdict exists, patch `spec.md`/`todo.md`/`final-report.md`/aggregate review JSON so they no longer claim the issues are merely preserved or mapped, then run a self-excluded artifact-consistency check over the final task docs before staging. Remove stale active `*pending*.json` markers only after the passed verdict artifacts exist, and mark superseded intermediate deltas as historical when later deltas replaced them. Rerun artifact consistency after this wording/artifact-list reconciliation before staging. See `references/plan-commit-precommit-artifact-reconciliation.md` for the compact checklist and `references/profile-feed-commit-readiness-2026-06.md` for a concrete recovery example covering stale final-review rows, recovered delegate verdicts, generated Markdown whitespace, and unrelated untracked task directories.
 
-If a required Codex-style `delegate_task` review is marked pending/blocked, assume the subagent may have completed without re-entering the parent session before declaring the task not commit-ready. Actively recover it: search `~/.hermes/logs/agent.log*` for the delegation id, unique review-scope phrase, and bundle path; inspect a wider log window after the dispatch for `platform=subagent` session ids and `Turn ended`; then call `session_search(session_id="<subagent_session_id>", profile="default")` directly. If `session_search` spills a large result to a persisted-output file, parse/read that file and inspect the final assistant messages for a JSON verdict. Save any parseable verdict artifact. A dispatch line alone is not enough, but a completed subagent transcript with a valid verdict satisfies the gate once saved. If direct session readback shows only the prompt/no final verdict, save a pending marker with the delegation id, subagent session id, bundle path, blocked commit stage, and resume steps, then stop before staging or committing artifacts that depend on that review; see `references/async-review-pending-during-plan-commit.md` and the concrete parser recipe in `references/async-delegate-review-transcript-recovery.md`.
+If a required Codex-style `delegate_task` review is marked pending/blocked, assume the subagent may have completed without re-entering the parent session before declaring the task not commit-ready. Actively recover it: search `~/.hermes/logs/agent.log*` for the delegation id, unique review-scope phrase, and bundle path; inspect a wider log window after the dispatch for `platform=subagent` session ids and `Turn ended`; then call `session_search(session_id="<subagent_session_id>", profile="default")` directly. If `session_search` spills a large result to a persisted-output file, parse/read that file and inspect the final assistant messages for a JSON verdict. Save any parseable verdict artifact. A dispatch line alone is not enough, but a completed subagent transcript with a valid verdict satisfies the gate once saved. If direct session readback shows only the prompt/no final verdict, either save a pending marker and stop before staging, or use a sanctioned independent fallback lane when the project permits rerunning the review: try authenticated local Codex CLI read-only first, and if unavailable use a one-shot `hermes chat -Q --source tool --toolsets file` JSON-only review. See `references/async-review-pending-during-plan-commit.md`, `references/async-delegate-review-transcript-recovery.md`, and `references/independent-review-fallback-lanes.md`.
 
 When reconciling checkboxes, also reconcile the explanatory child bullets and final status sections. A checked parent row with a stale nested note like "review not run", "review pending", old pass counts, old delegation IDs, or obsolete deviation text is still stale commit content. Do not mark a review gate complete until the actual final review artifact has returned and been saved; a dispatched/background review is not a passed review. For the concrete post-feedback correction pattern — prior approval staled by user/manual verification, non-blocking doc cleanup, generated bundle whitespace normalization, and final post-normalization staged consistency — see `references/post-feedback-correction-commit-readiness.md`.
 
@@ -148,13 +184,17 @@ This prevents committing task artifacts that claim an older broader smoke/review
 
 ### Pre-commit task artifact consistency review
 
-For completed `plan-code` task directories that are being committed as artifacts, run a small read-only artifact-consistency check after final TODO/final-report reconciliation and before staging when any task docs or review artifacts changed during commit readiness. The bundle should include the live `todo.md`, `final-report.md`, final review JSONs, aggregate review JSON, and a note that the future consistency verdict file is excluded from scope. For generated bundle whitespace normalization and the final post-normalization consistency pattern, see `references/generated-artifact-normalization-and-postcheck.md`.
+For completed `plan-code` task directories that are being committed as artifacts, run a small read-only artifact-consistency check after final TODO/final-report reconciliation and before staging when any task docs or review artifacts changed during commit readiness. The bundle should include the live `todo.md`, `final-report.md`, final review JSONs, aggregate review JSON, and a note that the future consistency verdict file is excluded from scope. Put `todo.md` and `final-report.md` into their intended final state before this review, even if they name the future self-excluded verdict. If the reviewer notes that the self-excluded verdict is checked before it exists, save the verdict immediately afterward and record that as the self-exclusion disposition rather than toggling the row again and creating another stale-doc loop. If the reviewer flags referenced raw artifacts that were omitted from the compact bundle, verify those files exist and record that disposition in the saved verdict. For generated bundle whitespace normalization and the final post-normalization consistency pattern, see `references/generated-artifact-normalization-and-postcheck.md`.
 
 If the implementation source/test changes are already present in `HEAD` and only recreated task artifacts or issue files are dirty, do not build the review/commit evidence from `git diff` alone. Include current source snapshots and recent commit readback in the bundle, record the implementation commit SHA in the aggregate artifact, and exclude volatile delegate-id files such as `reviews/final-review.json` from the reviewed bundle when they would create a self-referential stale loop. See `references/head-committed-implementation-with-recreated-task-artifacts.md`.
 
 If the consistency check fails on stale task-doc claims (for example a TODO still names an older `final-implementation-review-bundle.md` whose embedded verification counts predate later reviewer-driven fixes), patch the task docs to identify the actual final bundle and mark earlier bundles historical/superseded, save the failed consistency verdict as historical evidence, regenerate the consistency bundle, and rerun. Do not stage a task directory whose docs point at superseded verification/review artifacts as if they were final.
 
 When generated review bundles are normalized during commit prep to satisfy `git diff --cached --check`, run one final **post-normalization** read-only consistency check over the staged task artifacts before committing. Save and stage that verdict as a commit-prep artifact. It does not need to trigger another full implementation review if the only change was whitespace normalization in generated task artifacts, but the final response should name the post-normalization check and its result. If the task `final-report.md` is intended to list every committed review artifact, update it before this final consistency check; otherwise clearly treat the post-normalization verdict as a commit-prep artifact rather than part of the implementation review gate.
+
+When a completed task also deletes covered `tasks/out-of-scope-issues/...` files and a previously pending async Codex-style delegate returns during commit readiness, use `references/covered-issue-cleanup-and-late-delegate-recovery.md`: save the late verdict if it covers the current canonical bundle, remove/supersede pending markers, annotate unrelated already-absent issue rows without claiming they were completed by this task, normalize generated review bundles, and rerun a self-excluded artifact-consistency check before staging. For a concrete small frontend example that combines recovered async delegate verdicts, generated-bundle whitespace normalization, self-excluded post-normalization consistency, exact staging amid unrelated untracked task dirs, and `gh auth setup-git` push recovery, see `references/debug-console-hardening-commit-2026-07.md`.
+
+When the user asks to remove every issue listed in a tracked coverage map and then delete/commit/push that map, use `references/coverage-map-issue-cleanup-commit.md`: parse the map, remove only listed issue files that still exist plus the map itself, verify all listed paths are absent, and stage/read back that exact deletion scope before committing.
 
 For the combined pattern of asynchronous review recovery plus generated-artifact normalization, see `references/async-review-and-post-normalization-recovery-2026-06.md`. In particular: a dispatch id alone is not a pass; if the subagent session exists but has not persisted a final message, inspect logs for `Turn ended`, wait briefly if it is still working, then read/save the final JSON verdict before committing.
 
@@ -172,7 +212,7 @@ For small frontend/UI plan-code tasks with untracked task artifacts and generate
 
 ## Step 3 — Stage the Implementation Commit Explicitly
 
-Stage only intended implementation paths and the task directory. Examples:
+Stage only intended implementation paths, the task directory, and exact resolved out-of-scope issue file deletions. Examples:
 
 ```bash
 git add src/components/notification \
@@ -198,6 +238,8 @@ git status --short tasks
 Stop if unrelated files are staged.
 
 ## Step 4 — Commit and Push Implementation
+
+Before committing, check upstream divergence and recent log. If the branch is already ahead before the task commit (for example `git rev-list --left-right --count @{u}...HEAD` reports `0 1`), do not reset or rewrite it; record the existing ahead commit(s) and tell the user that the implementation push will also publish those already-local commits. If that is not acceptable, stop before pushing and ask for direction.
 
 Commit on the current branch:
 
@@ -294,12 +336,16 @@ Report:
 - Implementation commit SHA and push result.
 - Cleanup commit SHA and push result, or why no cleanup commit existed.
 - Task directory tracked/untracked status before cleanup.
+- Exact resolved out-of-scope issue files deleted in the implementation commit, if any.
+- Newly logged out-of-scope issue files, if any.
 - Verification commands or commit-readiness checks run.
+- When cleanup deletes committed task artifacts/review reports, include a concrete retrieval command for the implementation commit (for example `git show <implementation_sha>:tasks/<slug>/final-report.md`) so the user can inspect the now-removed artifacts later.
 - Any unrelated dirty tracked files left untouched.
 - Any unrelated untracked task directories left untouched.
 
 ## Common Pitfalls
 
+0. **Commit-readiness may start with a pending final consistency delegate.** Before staging, recover/save any pending artifact-consistency delegate verdict from logs/session history; a dispatch id is not enough. If generated task artifacts then need whitespace normalization for `git diff --cached --check`, treat that as a post-verdict artifact edit: make a self-excluded precommit/post-normalization consistency bundle, recover/save its passing verdict, stage that verdict, then commit. After the cleanup push, a broad dirty worktree can remain; verify success with upstream divergence (`0 0`), empty cached diff, task-dir absence, and HEAD/upstream readback rather than requiring unrelated work to be clean.
 0. **Cross-repo status/readback mismatch.** In multi-repo tasks, a secondary repo change may already be committed and pushed before the task-artifact repo is committed. Pre-commit consistency bundles must include the secondary repo commit SHA/path readback, not just current dirty status, or reviewers may falsely flag the docs as overclaiming.
 1. **Assuming `main` or `master`.** The target is the current branch. The user often works on `dev` or `develop`.
 2. **Deleting an untracked task directory before the implementation commit.** If the task directory is intended artifact content, first commit it with the implementation so the second `git rm -r --dry-run` / `git rm -r` cleanup commit has a real tracked deletion. Do not apply this to unrelated task directories.
@@ -313,13 +359,15 @@ Report:
 9. **Post-review normalization stales artifact claims unless checked.** When commit prep normalizes generated logs/review bundles after the final review, run a narrow read-only pre-commit artifact-consistency review over the staged state before committing. The prompt should explicitly exclude the future saved verdict file from its own reviewed scope. Save that verdict under the task `reviews/`, stage it, rerun `git diff --cached --check`, then commit. If the saved pre-commit verdict itself is followed by additional generated-artifact normalization, run one final post-normalization consistency check and stage that verdict too before committing.
 10. **Ignoring unrelated dirty files.** Leave them unstaged and name them in the final report.
 11. **Changing staged artifact membership after consistency approval.** If commit prep removes a superseded/historical bundle or otherwise changes which task artifacts will be committed after a consistency review passed, treat the approval as stale for the staged set. Rerun a final read-only artifact-consistency check against the exact staged artifact set, overwrite/restage the consistency verdict, and rerun `git diff --cached --check` before committing.
-12. **Follow-up refactors can hide behind mocked tests.** When a surfaced delta extracts a shared component or changes a prop gate, add a real-render boundary regression in addition to prop-wiring tests. Reviews can catch cases where `showControls=false` hides one child but leaves a sibling actionbar/control surface active; the fix needs source gating plus a test that proves the visible contract.
+12. **Late async review completions after newer reviews/commits.** Background review delegates can re-enter the chat after the task has already advanced through later review bundles, implementation fixes, commits, and cleanup. Do not reopen a completed task from the late message alone. First compare the delegation's reviewed bundle/version/path and blocker text against the final committed implementation/review artifacts: `git status --short --branch`, `git log --oneline --decorate -5`, and `git show --name-only <implementation_sha> -- tasks/<slug>/reviews`. If the late review targets an older bundle (for example v1-v4) and a later canonical bundle/review (for example v5) explicitly fixed and passed the same issue, classify it as stale/superseded and report no action. If it targets the current canonical bundle or raises a genuinely new blocker not covered by the final artifacts, stop and perform a normal follow-up fix/review/commit rather than dismissing it.
+13. **Follow-up refactors can hide behind mocked tests.** When a surfaced delta extracts a shared component or changes a prop gate, add a real-render boundary regression in addition to prop-wiring tests. Reviews can catch cases where `showControls=false` hides one child but leaves a sibling actionbar/control surface active; the fix needs source gating plus a test that proves the visible contract.
+14. **Using the old preservation default.** For completed plan-code tasks, `commit and push` now means implementation/artifact commit plus cleanup commit by default. Preserve the task directory only when the user explicitly asks to keep it. Resolved out-of-scope issue files should be deleted by default only after confirming exact ownership/match; unrelated findings must be logged separately under `tasks/out-of-scope-issues/...` instead of fixed inline.
 
 ## Verification Checklist
 
 - [ ] Current branch and upstream verified; no assumption of `main`/`master`.
 - [ ] Task directory completion reconciled before first commit.
-- [ ] First staged diff contains only intended implementation paths and task artifacts.
+- [ ] First staged diff contains only intended implementation paths, task artifacts, and exact resolved out-of-scope issue deletions.
 - [ ] `git diff --cached --check` passed before first commit.
 - [ ] First commit pushed and read back.
 - [ ] `git rm -r --dry-run -- tasks/<slug>` listed only the implemented task directory before cleanup.
