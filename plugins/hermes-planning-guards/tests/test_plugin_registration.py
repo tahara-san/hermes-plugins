@@ -48,4 +48,11 @@ def test_register_wires_expected_hooks():
     ctx = FakeContext()
     module.register(ctx)
     names = [name for name, _ in ctx.hooks]
-    assert names == ["pre_tool_call", "pre_llm_call"]
+    assert names == [
+        "pre_tool_call",
+        "pre_llm_call",
+        "post_tool_call",
+        "pre_verify",
+        "transform_llm_output",
+        "on_session_end",
+    ]

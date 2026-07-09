@@ -1,0 +1,16 @@
+{
+  "reviewer": "Claude Code",
+  "model_effort": "Opus 4.8 / xhigh",
+  "session": "claude-parity-review-115023",
+  "bundle_path": "tasks/claude-plugin-parity-update/reviews/final-implementation-review-bundle.md",
+  "verdict": "APPROVED",
+  "passed": true,
+  "blockers": [],
+  "non_blocking": [
+    "Runtime payload contract for the new non-tool hooks is asserted from Hermes source/docs but not end-to-end exercised in this repo; reviewer recommended a real Hermes run as future confidence.",
+    "explicitly_says_no_issue_to_log is coarse and can exempt a mixed response that also contains a real finding; acceptable for the explicit-escape approximation.",
+    "_state_key reads _latest_turn_by_session outside _state_lock; benign under expected sequential hook invocation, possible future concurrency hardening."
+  ],
+  "summary": "Approved. Implementation realizes the scoped Hermes-native Stop-hook approximation, preserves env blocker behavior, registers/docs/tests the new hooks, and verification passed.",
+  "captured_at": "2026-07-09T11:54:32.802264+00:00"
+}

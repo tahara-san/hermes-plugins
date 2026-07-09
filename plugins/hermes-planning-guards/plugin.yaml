@@ -1,7 +1,11 @@
 name: hermes-planning-guards
 version: "0.1.0"
-description: "Planning workflow guardrails: block unsafe .env* tool access and inject out-of-scope issue logging reminders."
+description: "Planning workflow guardrails: block unsafe .env* tool access and actively enforce out-of-scope issue logging reminders."
 author: "tahara-san and contributors"
 provides_hooks:
   - pre_tool_call
   - pre_llm_call
+  - post_tool_call
+  - pre_verify
+  - transform_llm_output
+  - on_session_end
