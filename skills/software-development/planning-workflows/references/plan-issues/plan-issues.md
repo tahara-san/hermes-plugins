@@ -1,6 +1,6 @@
 ---
 name: plan-issues
-description: Use when the user wants Hermes to convert logged out-of-scope issue files into task plan directories (Claude Code /plan-issues style). Scans tasks/out-of-scope-issues layouts, filters by priority, groups and deduplicates issues, resolves decisions up front, invokes the plan-doc workflow, and reports skipped/manual issues.
+description: Use when the user wants Hermes to convert logged out-of-scope issue files into task plan directories (Claude Code /plan-issues style). Scans tasks/out-of-scope-issues layouts, filters by priority, groups and deduplicates issues, resolves decisions up front, explicitly invokes the `plan-doc` workflow, and reports skipped/manual issues.
 version: 1.0.0
 author: Hermes Agent (migrated from Claude Code planner plugin)
 license: MIT
@@ -102,7 +102,7 @@ For each group, run the `plan-doc` workflow using a composed task description co
 - `## Manual-Handling Notes` block if relevant
 - hard rules: no migration/backward-compatibility code unless explicitly requested; prefer direct elegant fixes
 
-In Hermes, this means load/use the `plan-doc` skill behavior directly in this session and create the corresponding `tasks/<task-name>/` files.
+In Hermes, this means **load the `plan-doc` skill** and use its behavior directly in this session. Create the corresponding `tasks/<task-name>/` files through that workflow rather than hand-writing a weaker substitute.
 
 ### Step 8: Source Issue Cleanup Policy
 

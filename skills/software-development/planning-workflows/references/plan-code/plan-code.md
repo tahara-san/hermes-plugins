@@ -1,13 +1,13 @@
 ---
 name: plan-code
-description: Use when the user wants Hermes to execute an existing implementation plan (Claude Code /plan-code style). Loads tasks/<task-name> plan docs or an in-context plan, evaluates serial vs parallel execution, implements safe independent batches simultaneously, enforces decision gates, runs simplify before the default parallel Codex + Claude Code default Opus 4.8 (`claude-i`) review gate, verifies builds/tests, updates progress, and reports completion. Includes guidance for E2E fixture prerequisite gating in references/e2e-fixture-prerequisite-gating.md.
+description: Use when the user wants Hermes to execute an existing implementation plan (Claude Code /plan-code style). Loads tasks/<task-name> plan docs or an in-context plan, evaluates serial vs parallel execution, implements safe independent batches simultaneously, enforces decision gates, runs simplify before the default parallel Codex-style Hermes delegate + Claude Code Opus 4.8 @ xhigh effort (`claude-i`) review gate, verifies builds/tests, updates progress, and reports completion. Includes guidance for E2E fixture prerequisite gating in references/e2e-fixture-prerequisite-gating.md.
 version: 1.1.0
 author: Hermes Agent (migrated from Claude Code planner plugin)
 license: MIT
 metadata:
   hermes:
     tags: [implementation, planning, review-gates, claude-code-migration]
-    related_skills: [plan-doc, simplify, requesting-code-review, subagent-driven-development, codex, claude-i]
+    related_skills: [plan-doc, simplify, requesting-code-review, subagent-driven-development, claude-i]
 ---
 
 # plan-code
@@ -28,7 +28,7 @@ Works with either plan files under `tasks/<task-name>/` or an in-context plan.
 
 Reference: `references/end-to-end-phase-execution.md` captures the completion/resume guardrails for multi-phase plans, context compression, E2E decision gates, final verification, and requested cleanup. For near-complete tasks, also use `references/last-mile-verification-invalidation.md` to avoid making small final edits after a passing gate without rerunning the affected verification/review. When a phase or batch has multiple mandatory reviewers, use `references/phase-review-loop-discipline.md`: a single concrete worth-addressing finding from any mandatory reviewer keeps the phase open until fixed, verified, and re-reviewed (or explicitly documented as accepted/ignored). When a frontend plan depends on backend APIs or explicitly forbids mocks/local approximations, also use `references/frontend-backend-contract-gating.md` before coding.
 
-Every numbered step and every unchecked `- [ ]` item in the plan is a blocking requirement unless the user explicitly changes scope. Use `/goal` as the standing completion contract when it is present: keep pushing through every task, phase, simplify/review loop, fix, and verification gate until the whole plan is done. If the user invokes `/plan-code` without an explicit `/goal`, internally adopt the same goal-driven behavior instead of stopping after a phase summary. Before implementing, evaluate whether phases/tasks can safely execute in parallel; when they can, implement them simultaneously and then reconcile/review the combined result. Do not skip `simplify`. Do not run the default parallel Codex + Claude Code default Opus 4.8 (`claude-i`) review gate before `simplify` has run on the same changed files.
+Every numbered step and every unchecked `- [ ]` item in the plan is a blocking requirement unless the user explicitly changes scope. Use `/goal` as the standing completion contract when it is present: keep pushing through every task, phase, simplify/review loop, fix, and verification gate until the whole plan is done. If the user invokes `/plan-code` without an explicit `/goal`, internally adopt the same goal-driven behavior instead of stopping after a phase summary. Before implementing, evaluate whether phases/tasks can safely execute in parallel; when they can, implement them simultaneously and then reconcile/review the combined result. Do not skip `simplify`. Do not run the default parallel Codex-style Hermes delegate + Claude Code Opus 4.8 @ xhigh effort (`claude-i`) review gate before `simplify` has run on the same changed files.
 
 ### Resource-Limit Rule
 
@@ -122,9 +122,9 @@ Run the `simplify` skill on this phase's or batch's changed files. Apply simplif
 After simplify, review all files changed in this phase or batch with the default two-reviewer gate:
 
 1. Build one immutable review bundle that includes the implementation diff, relevant untracked files, task docs, verification evidence available so far, static-scan results, and the intended behavior contract.
-2. Run the Codex-style leg via `requesting-code-review`, Codex CLI, or a fresh `delegate_task` reviewer against that saved bundle.
+2. Run the Codex-style leg via a fresh Hermes `delegate_task` reviewer using the `requesting-code-review` contract; request GPT 5.6 Sol @ xhigh effort, and never call a local Codex binary.
 3. In parallel when safe, run Claude Code through `claude-i` in interactive mode using the configured configured Opus 4.8 @ xhigh effort model. Request and verify Opus 4.8 @ xhigh effort. Verify the Claude Code TUI banner/status line before sending the substantive prompt and record the actual model/effort shown; if Claude Code cannot run, document the deviation/blocker and treat the gate as blocked unless the user waives it.
-4. Save separate Codex and Claude Code default Opus 4.8 (`claude-i`) artifacts plus an aggregate verdict for the phase/batch review when the plan requires durable review artifacts. The aggregate verdict must record bundle path, reviewer tool/model, both verdicts, static-scan status, verification status, and timestamp.
+4. Save separate Codex-style Hermes delegate and Claude Code Opus 4.8 @ xhigh effort (`claude-i`) artifacts plus an aggregate verdict for the phase/batch review when the plan requires durable review artifacts. The aggregate verdict must record bundle path, reviewer tool/model, both verdicts, static-scan status, verification status, and timestamp.
 
 If a holistic review or either review leg times out on a large diff, do not treat the timeout as a pass and do not abandon review. Retry with smaller scoped review batches divided by concern/write set (for example setup/config, helpers/specs, issue logs), then reconcile findings across the batches before completion.
 
@@ -155,7 +155,7 @@ Progress updates are mandatory before moving to the next phase or optional revie
 
 For multi-phase plans, after all phases:
 1. Run `simplify` on all files changed across all phases.
-2. Run the default parallel Codex + Claude Code default Opus 4.8 (`claude-i`) review stack on all changed files together, using one saved final bundle when safe.
+2. Run the default parallel Codex-style Hermes delegate + Claude Code Opus 4.8 @ xhigh effort (`claude-i`) review stack on all changed files together, using one saved final bundle when safe.
 3. Fix -> simplify -> review until clean.
 4. Document intentionally ignored warnings in `tasks/<task-name>/ignored-warnings.md`.
 
@@ -220,7 +220,7 @@ When a completed Buffdemy backend `/plan-code` task has been externally merged a
 If verification fails:
 1. Fix the failure.
 2. Run `simplify` on the fix.
-3. Run the default parallel Codex + Claude Code default Opus 4.8 (`claude-i`) review stack on the fix.
+3. Run the default parallel Codex-style Hermes delegate + Claude Code Opus 4.8 @ xhigh effort (`claude-i`) review stack on the fix.
 4. Re-run verification.
 5. Repeat until passing or blocked by a real external dependency.
 
@@ -238,14 +238,14 @@ If verification fails:
    - decisions surfaced and answers
    - warnings ignored and rationale
    - verification result
-   - number of simplify and review iterations, plus the final aggregate review artifact path and verdict for Codex + Claude Code default Opus 4.8 (`claude-i`)
+   - number of simplify and review iterations, plus the final aggregate review artifact path and verdict for Codex-style Hermes delegate + Claude Code Opus 4.8 @ xhigh effort (`claude-i`)
    - files changed
    - out-of-scope issues logged or updated (or state that none were found)
 
 ## Common Pitfalls
 
 - Treating a reviewer JSON field like `passed: true` as the whole review result. If `worth_addressing` contains concrete code-quality or correctness findings, either fix them and rerun the affected gates or explicitly document why they are accepted/ignored before moving on to Claude/final verification.
-- Running review before simplify, or running only one leg of the default Codex + Claude Code default Opus 4.8 (`claude-i`) stack when both are required.
+- Running review before simplify, or running only one leg of the default Codex-style Hermes delegate + Claude Code Opus 4.8 @ xhigh effort (`claude-i`) stack when both are required.
 - Treating a general "don't ask questions" preference as a per-task "just decide" decision bypass.
 - Moving to the next phase while TODO/progress files still show unchecked phase items.
 - Using a stale review result after fixing findings.
