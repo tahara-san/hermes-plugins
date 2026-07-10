@@ -1,7 +1,7 @@
 ---
 name: plan-doc
 description: Use when the user wants Hermes to create task planning documents before implementation (Claude Code /plan-doc style). Produces tasks/<task-name>/spec.md plus todo.md or phase TODOs, with decision gates, dependency/parallelization analysis, manual-handling notes, simplify review, and the default parallel Codex-style Hermes delegate + Claude Code Opus 4.8 @ xhigh effort (`claude-i`) review gate preserved for Hermes workflows.
-version: 1.1.0
+version: 1.1.1
 author: Hermes Agent (migrated from Claude Code planner plugin)
 license: MIT
 metadata:
@@ -178,7 +178,7 @@ Small plan: `tasks/<task-name>/todo.md`
 
 ## Implementation Rules
 - Orchestrator uses Hermes in this session.
-- Mandatory out-of-scope issue tracking is active: when warnings, issues, code smells, bugs, skipped items, follow-ups, or potential problems are encountered outside this task scope, do not silently ignore them and do not fix them inline unless explicitly requested. Before creating a new file, check for an existing matching issue and update it instead of duplicating it. Otherwise log each finding as `tasks/out-of-scope-issues/<priority>/<YYYYMMDD>_<short-kebab>.md`, or `tasks/out-of-scope-issues/<priority>/manual/<YYYYMMDD>_<short-kebab>.md` when human investigation/intervention is required. `<priority>` must be one of `critical`, `high`, `medium`, `low`, `proposal`, `other`. Each file must contain these sections in this order: **Issue**, **Location**, **Severity**, **Context**, **Suggested Fix**. Mention logged out-of-scope issues in the wrap-up.
+- Mandatory out-of-scope issue tracking is active: when warnings, issues, code smells, bugs, skipped items, follow-ups, or potential problems are encountered outside this task scope, do not silently ignore them and do not fix them inline unless explicitly requested. Before creating a new file, check for an existing matching issue and update it instead of duplicating it. Otherwise log each finding as `tasks/out-of-scope-issues/<priority>/<YYYYMMDD>_<short-kebab>.md`, or `tasks/out-of-scope-issues/<priority>/manual/<YYYYMMDD>_<short-kebab>.md` when human investigation/intervention is required. `<priority>` must be one of `critical`, `high`, `medium`, `low`, `proposal`, `other`. Each file must contain these sections in this order: **Issue**, **Location**, **Severity**, **Context**, **Suggested Fix**. Mention logged out-of-scope issues in the wrap-up. **Exception:** do not create or update an out-of-scope issue file solely for GitHub Dependabot alerts or security-advisory counts; mention them briefly in the wrap-up only when relevant, or triage them through GitHub/`gh`/`npm audit` only when the user explicitly asks.
 - Evaluate phases/tasks for safe parallel execution before implementation. If phases/tasks are independent, execute them simultaneously (prefer `delegate_task` batch calls with complete, non-overlapping context) and reconcile their outputs before shared review/verification. If they are not independent, follow the documented serial dependency order.
 - Use `delegate_task` for non-trivial code changes when helpful.
 - Use `/goal` for execution: keep advancing through every task, phase, simplify/review loop, and verification step until the whole plan is complete. Do not pause between phases or ask whether to continue unless there is a genuine blocker: unresolved user decision, manual-handling requirement, unfixable verification failure, or user interruption.
@@ -212,7 +212,7 @@ Before reporting completion, run simplification and the default parallel review 
 
 1. Use the `simplify` skill to check whether the plan can be narrower, clearer, or less coupled.
 2. Build one immutable plan-doc review bundle containing the task docs, relevant current-code context, package/test-script context, `git status --short`, and relevant untracked task files.
-3. Run the Codex-style review leg via a fresh Hermes `delegate_task` reviewer using the `requesting-code-review` contract; request GPT 5.6 Sol @ xhigh effort, and never call a local Codex binary.
+3. Run the Codex-style review leg via a fresh Hermes `delegate_task` reviewer using the `requesting-code-review` contract. This lane must use GPT 5.6 Sol @ xhigh effort; record the actual reviewer model/effort and fail closed on an unavailable or mismatched lane unless the user explicitly waives or approves a substitution. Never call a local Codex binary.
 4. In parallel when safe, run Claude Code through `claude-i` in interactive mode using the configured configured Opus 4.8 @ xhigh effort model. Request and verify Opus 4.8 @ xhigh effort. Verify the Claude Code TUI banner/status line before sending the substantive prompt and record the actual model/effort shown; if Claude Code cannot run, document the deviation/blocker and treat the gate as blocked unless the user waives it.
 5. Save separate Codex-style Hermes delegate and Claude Code Opus 4.8 @ xhigh effort (`claude-i`) review artifacts plus one aggregate verdict under `tasks/<task-name>/reviews/`. The aggregate artifact must record bundle path, reviewer tool/model, both verdicts, static-scan status if applicable, verification status if applicable, and timestamp.
 6. Revise on blocking findings and on non-blocking suggestions that materially improve execution safety, verification, blocker handling, or scope control.

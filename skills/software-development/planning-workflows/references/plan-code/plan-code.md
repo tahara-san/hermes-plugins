@@ -1,7 +1,7 @@
 ---
 name: plan-code
 description: Use when the user wants Hermes to execute an existing implementation plan (Claude Code /plan-code style). Loads tasks/<task-name> plan docs or an in-context plan, evaluates serial vs parallel execution, implements safe independent batches simultaneously, enforces decision gates, runs simplify before the default parallel Codex-style Hermes delegate + Claude Code Opus 4.8 @ xhigh effort (`claude-i`) review gate, verifies builds/tests, updates progress, and reports completion. Includes guidance for E2E fixture prerequisite gating in references/e2e-fixture-prerequisite-gating.md.
-version: 1.1.0
+version: 1.1.1
 author: Hermes Agent (migrated from Claude Code planner plugin)
 license: MIT
 metadata:
@@ -64,7 +64,7 @@ From files:
 1. Read `tasks/<task-name>/spec.md`.
 2. Read `todo.md`, or `progress.md` plus all `todo-phase-N.md` files.
 3. Extract phases, tasks, verification requirements, implementation rules, manual-handling notes, decisions, dependency/parallelization instructions, and any mandatory out-of-scope issue tracking rules.
-4. If the plan omits out-of-scope tracking details, still apply the project/user policy: out-of-scope warnings, issues, code smells, bugs, skipped items, follow-ups, and potential problems must be logged as separate required-format markdown files under `tasks/out-of-scope-issues/<priority>/` (or `<priority>/manual/` when human investigation/intervention is required), updating existing matching files instead of duplicating them.
+4. If the plan omits out-of-scope tracking details, still apply the project/user policy: when warnings, issues, code smells, bugs, skipped items, follow-ups, or potential problems are outside the current task scope, do not silently ignore them and do not fix them inline unless the user explicitly asks. Before creating a new file, check for an existing matching issue and update it instead of duplicating it. Log each non-exempt finding as a separate markdown file at `tasks/out-of-scope-issues/<priority>/<YYYYMMDD>_<short-kebab>.md`, or `tasks/out-of-scope-issues/<priority>/manual/<YYYYMMDD>_<short-kebab>.md` when human investigation/intervention is required. `<priority>` is one of `critical`, `high`, `medium`, `low`, `proposal`, or `other`. Each file contains these sections in order: **Issue**, **Location**, **Severity**, **Context**, **Suggested Fix**. Mention logged out-of-scope issues in the wrap-up. **Exception:** do not create or update an issue file solely for GitHub Dependabot alerts or security-advisory counts; mention them briefly in the wrap-up only when relevant, or use GitHub/`gh`/`npm audit` to triage or fix them only when the user explicitly asks.
 
 From context:
 1. Extract phases and tasks from the user's plan.
@@ -122,7 +122,7 @@ Run the `simplify` skill on this phase's or batch's changed files. Apply simplif
 After simplify, review all files changed in this phase or batch with the default two-reviewer gate:
 
 1. Build one immutable review bundle that includes the implementation diff, relevant untracked files, task docs, verification evidence available so far, static-scan results, and the intended behavior contract.
-2. Run the Codex-style leg via a fresh Hermes `delegate_task` reviewer using the `requesting-code-review` contract; request GPT 5.6 Sol @ xhigh effort, and never call a local Codex binary.
+2. Run the Codex-style leg via a fresh Hermes `delegate_task` reviewer using the `requesting-code-review` contract. This lane must use GPT 5.6 Sol @ xhigh effort; record the actual reviewer model/effort and fail closed on an unavailable or mismatched lane unless the user explicitly waives or approves a substitution. Never call a local Codex binary.
 3. In parallel when safe, run Claude Code through `claude-i` in interactive mode using the configured configured Opus 4.8 @ xhigh effort model. Request and verify Opus 4.8 @ xhigh effort. Verify the Claude Code TUI banner/status line before sending the substantive prompt and record the actual model/effort shown; if Claude Code cannot run, document the deviation/blocker and treat the gate as blocked unless the user waives it.
 4. Save separate Codex-style Hermes delegate and Claude Code Opus 4.8 @ xhigh effort (`claude-i`) artifacts plus an aggregate verdict for the phase/batch review when the plan requires durable review artifacts. The aggregate verdict must record bundle path, reviewer tool/model, both verdicts, static-scan status, verification status, and timestamp.
 

@@ -1,7 +1,7 @@
 ---
 name: planning-workflows
 description: "Use when planning, documenting, executing, cleaning, or converting implementation plans and task directories across Hermes/Claude-style workflows."
-version: 1.0.0
+version: 1.0.1
 author: Hermes Agent
 license: MIT
 platforms: [linux, macos, windows]
@@ -45,7 +45,7 @@ Do not substitute a normal implementation plan, memory of the workflow, or an af
 
 Unless the user explicitly overrides the review stack, explicit `plan-doc` and `plan-code` workflows use a two-reviewer gate:
 
-1. **Codex-style Hermes delegate review** — run a fresh Hermes `delegate_task` independent reviewer against a saved, self-contained bundle using the `requesting-code-review` review contract. Do **not** invoke or check for a local `codex` / `npx @openai/codex` binary. Use GPT 5.6 Sol @ xhigh effort, and record the actual reviewer model/effort in the artifact.
+1. **Codex-style Hermes delegate review** — run a fresh Hermes `delegate_task` independent reviewer against a saved, self-contained bundle using the `requesting-code-review` review contract. Do **not** invoke or check for a local `codex` / `npx @openai/codex` binary. This lane **must use GPT 5.6 Sol @ xhigh effort**; record the actual reviewer model/effort in the artifact. If that model/effort is unavailable or the artifact shows a mismatch, fail closed unless the user explicitly waives or approves a substitution.
 2. **Claude Code Opus 4.8 @ xhigh effort review** — run Claude Code via the `claude-i` workflow in interactive mode, not `claude -p`. `claude-i` is a skill/workflow name, not necessarily a shell executable; for availability checks, `tmux` plus the `claude` CLI and a loaded/known `claude-i` workflow satisfy the requirement. Before sending the substantive prompt, verify the Claude Code TUI banner/status shows Opus 4.8 @ xhigh effort and save both raw and structured verdict artifacts. If Opus 4.8 @ xhigh effort or the requested effort cannot be selected, fail closed or record an explicit user-approved substitution; never substitute silently.
 
 Run both reviews in parallel when safe: build one immutable review bundle first, launch the Claude Code Opus 4.8 @ xhigh effort review through `claude-i`, and dispatch the Codex-style review against that same bundle before adjudicating either result. Save separate raw reviewer artifacts plus one aggregate verdict artifact that records both verdicts, bundle path, reviewer model/tool/effort, static-scan status, verification status, and timestamp. Blocking findings from either reviewer fail the gate; non-blocking suggestions may be recorded without churn.
