@@ -1,7 +1,7 @@
 ---
 name: plan-doc
-description: Use when the user wants Hermes to create task planning documents before implementation (Claude Code /plan-doc style). Produces tasks/<task-name>/spec.md plus todo.md or phase TODOs, with decision gates, dependency/parallelization analysis, manual-handling notes, simplify review, and the default parallel Codex-style Hermes delegate + Claude Code Opus 4.8 @ xhigh effort (`claude-i`) review gate preserved for Hermes workflows.
-version: 1.1.1
+description: Use when the user wants Hermes to create task planning documents before implementation (Claude Code /plan-doc style). Produces tasks/<task-name>/spec.md plus todo.md or phase TODOs, with decision gates, dependency/parallelization analysis, manual-handling notes, simplify review, and the default parallel Hermes delegated review + Claude Code Opus 4.8 @ xhigh effort (`claude-i`) review gate preserved for Hermes workflows.
+version: 1.1.2
 author: Hermes Agent (migrated from Claude Code planner plugin)
 license: MIT
 metadata:
@@ -33,7 +33,6 @@ Claude Code concepts map to Hermes as follows:
 - `Bash` -> use `terminal` only for git/project commands and verification.
 - `EnterPlanMode` / `ExitPlanMode` -> no direct Hermes equivalent; preserve the same behavior by running a strict decision gate before writes and asking for approval when decisions materially affect the plan.
 - `/simplify` -> load/use the `simplify` skill for a simplification pass.
-- `/codex-chunk` -> use the default parallel review stack: Codex-style review means a Hermes `delegate_task` independent reviewer using the `requesting-code-review` contract, targeting GPT 5.6 Sol @ xhigh effort, plus Claude Code Opus 4.8 @ xhigh effort through `claude-i`. Never invoke or require a local `codex` / `npx @openai/codex` binary for this leg.
 - `/goal` -> include a kickoff prompt that sets a standing goal before `/plan-code`, so Hermes keeps advancing through every task, phase, review gate, and verification step until completion. The goal must allow stopping only for genuine blockers: unresolved user decisions, manual-handling requirements, unfixable verification failures, or user interruption.
 
 ## Procedure
@@ -153,7 +152,7 @@ Implementation workflow must preserve this sequence:
 
 1. Implement a serial phase or a documented parallel batch.
 2. Run `simplify` on changed files and apply worthwhile simplifications.
-3. Build one immutable review bundle, then run Codex-style Hermes delegate review and Claude Code Opus 4.8 @ xhigh effort (`claude-i`) review against that same bundle in parallel when safe.
+3. Build one immutable review bundle, then run Hermes delegated review and Claude Code Opus 4.8 @ xhigh effort (`claude-i`) review against that same bundle in parallel when safe.
 4. Fix critical or worth-addressing warnings.
 5. Repeat simplify -> review until clean or documented as intentionally ignored.
 6. Run build/tests using project-appropriate commands.
@@ -170,8 +169,8 @@ Small plan: `tasks/<task-name>/todo.md`
 
 ## Verification
 - [ ] All tasks above completed
-- [ ] Per-phase simplify -> default parallel Codex-style Hermes delegate + Claude Code Opus 4.8 @ xhigh effort (`claude-i`) review passes
-- [ ] Holistic simplify -> default parallel Codex-style Hermes delegate + Claude Code Opus 4.8 @ xhigh effort (`claude-i`) review passes (skip if single-phase)
+- [ ] Per-phase simplify -> default parallel Hermes delegated review + Claude Code Opus 4.8 @ xhigh effort (`claude-i`) review passes
+- [ ] Holistic simplify -> default parallel Hermes delegated review + Claude Code Opus 4.8 @ xhigh effort (`claude-i`) review passes (skip if single-phase)
 - [ ] Project build/test verification passes
 
 ---
@@ -195,8 +194,8 @@ Small plan: `tasks/<task-name>/todo.md`
 - [ ] Every planned phase/task has been implemented or explicitly marked blocked by an unresolved user/manual/external decision.
 - [ ] All `todo.md` / `todo-phase-N.md` files have been audited for unchecked executable items after the final code change.
 - [ ] `progress.md` (if present) matches the task files and current code state.
-- [ ] Per-phase or per-batch simplify -> default parallel Codex-style Hermes delegate + Claude Code Opus 4.8 @ xhigh effort (`claude-i`) review gates are complete.
-- [ ] Holistic simplify -> default parallel Codex-style Hermes delegate + Claude Code Opus 4.8 @ xhigh effort (`claude-i`) review is complete after the last code change.
+- [ ] Per-phase or per-batch simplify -> default parallel Hermes delegated review + Claude Code Opus 4.8 @ xhigh effort (`claude-i`) review gates are complete.
+- [ ] Holistic simplify -> default parallel Hermes delegated review + Claude Code Opus 4.8 @ xhigh effort (`claude-i`) review is complete after the last code change.
 - [ ] Final project verification commands have passed, or any unfixable external blocker is documented with evidence.
 - [ ] Requested task-file cleanup has run only after the completion audit passes.
 - [ ] If a resource limit or context compression interrupts execution, the continuation prompt reloads the task files and resumes from unchecked items instead of relying on memory.
@@ -212,9 +211,9 @@ Before reporting completion, run simplification and the default parallel review 
 
 1. Use the `simplify` skill to check whether the plan can be narrower, clearer, or less coupled.
 2. Build one immutable plan-doc review bundle containing the task docs, relevant current-code context, package/test-script context, `git status --short`, and relevant untracked task files.
-3. Run the Codex-style review leg via a fresh Hermes `delegate_task` reviewer using the `requesting-code-review` contract. This lane must use GPT 5.6 Sol @ xhigh effort; record the actual reviewer model/effort and fail closed on an unavailable or mismatched lane unless the user explicitly waives or approves a substitution. Never call a local Codex binary.
+3. Run the Hermes delegated review leg via a fresh Hermes `delegate_task` reviewer using the `requesting-code-review` contract. This lane must use GPT 5.6 Sol @ xhigh effort; record the actual reviewer model/effort and fail closed on an unavailable or mismatched lane unless the user explicitly waives or approves a substitution. Never invoke, install, probe, authenticate, or check availability for a local `codex` / `npx @openai/codex` executable. A waiver omits this lane, while any model substitution must remain a `delegate_task` reviewer.
 4. In parallel when safe, run Claude Code through `claude-i` in interactive mode using the configured configured Opus 4.8 @ xhigh effort model. Request and verify Opus 4.8 @ xhigh effort. Verify the Claude Code TUI banner/status line before sending the substantive prompt and record the actual model/effort shown; if Claude Code cannot run, document the deviation/blocker and treat the gate as blocked unless the user waives it.
-5. Save separate Codex-style Hermes delegate and Claude Code Opus 4.8 @ xhigh effort (`claude-i`) review artifacts plus one aggregate verdict under `tasks/<task-name>/reviews/`. The aggregate artifact must record bundle path, reviewer tool/model, both verdicts, static-scan status if applicable, verification status if applicable, and timestamp.
+5. Save separate Hermes delegated review and Claude Code Opus 4.8 @ xhigh effort (`claude-i`) review artifacts plus one aggregate verdict under `tasks/<task-name>/reviews/`. The aggregate artifact must record bundle path, reviewer tool/model, both verdicts, static-scan status if applicable, verification status if applicable, and timestamp.
 6. Revise on blocking findings and on non-blocking suggestions that materially improve execution safety, verification, blocker handling, or scope control.
 7. If any review-driven doc change is applied, regenerate the bundle and rerun both review legs so the final report is not based on stale review artifacts.
 8. If either reviewer times out, wedges, returns an incomplete/unparseable verdict, or cannot inspect the intended scope, treat that leg as failed/blocked; retry with a narrower bundle when practical. Do not claim the plan "passed" review unless both legs pass or the user explicitly waives one.
@@ -234,16 +233,16 @@ Tell the user:
 4. Decisions captured (`Q -> A`) and provenance.
 5. Manual-handling notes.
 6. Dependency & parallelization assessment, including parallel groups or serial dependency rationale.
-- Confirmation that plan docs passed simplify + default parallel Codex-style Hermes delegate + Claude Code Opus 4.8 @ xhigh effort (`claude-i`) review, including the aggregate review artifact path, or a concise note that a required review leg was blocked/waived.
+- Confirmation that plan docs passed simplify + default parallel Hermes delegated review + Claude Code Opus 4.8 @ xhigh effort (`claude-i`) review, including the aggregate review artifact path, or a concise note that a required review leg was blocked/waived.
 
 ### Step 9: Emit Kickoff Prompt
 
-End every ready-plan `/plan-doc` response with a copy-pasteable prompt. This applies not only to the initial plan creation, but also to follow-up plan refreshes, backend-contract updates, independent/Claude/Codex review requests, or any later `/plan-doc`-related turn where the plan remains ready for implementation. If a follow-up changes or re-approves the plan, re-emit the kickoff prompt in the final answer.
+End every ready-plan `/plan-doc` response with a copy-pasteable prompt. This applies not only to the initial plan creation, but also to follow-up plan refreshes, backend-contract updates, Hermes-delegate/Claude review requests, or any later `/plan-doc`-related turn where the plan remains ready for implementation. If a follow-up changes or re-approves the plan, re-emit the kickoff prompt in the final answer.
 
 End with a copy-pasteable prompt:
 
 ```text
-/goal Complete tasks/<task-name> end-to-end: execute every unchecked task/phase, run any documented independent phases/tasks in parallel, run simplify and the default parallel Codex-style Hermes delegate + Claude Code Opus 4.8 @ xhigh effort (`claude-i`) review gates, fix worth-addressing findings, run verification, and clean up requested task files. Keep pushing forward without pausing between phases; stop only for unresolved user decisions, manual-handling requirements, unfixable verification failures, user interruption, or an infrastructure resource limit that prevents further tool calls.
+/goal Complete tasks/<task-name> end-to-end: execute every unchecked task/phase, run any documented independent phases/tasks in parallel, run simplify and the default parallel Hermes delegated review + Claude Code Opus 4.8 @ xhigh effort (`claude-i`) review gates, fix worth-addressing findings, run verification, and clean up requested task files. Keep pushing forward without pausing between phases; stop only for unresolved user decisions, manual-handling requirements, unfixable verification failures, user interruption, or an infrastructure resource limit that prevents further tool calls.
 
 /plan-code @tasks/<task-name>
 
@@ -252,7 +251,7 @@ End with a copy-pasteable prompt:
 - After every phase or parallel batch, immediately update the task TODO/progress files and session TODO state.
 - Before final review, final verification, and cleanup, audit all task files for unchecked executable items; continue until none remain.
 - If context compression or tool-call limits interrupt execution, the next run must reload `tasks/<task-name>/spec.md`, `progress.md`, and all TODO files, then resume from unchecked items.
-- Push through to final completion of all planned work, simplify/review loops, default parallel Codex-style Hermes delegate + Claude Code Opus 4.8 @ xhigh effort (`claude-i`) review gates, verification, and requested cleanup under the `/goal` above.
+- Push through to final completion of all planned work, simplify/review loops, default parallel Hermes delegated review + Claude Code Opus 4.8 @ xhigh effort (`claude-i`) review gates, verification, and requested cleanup under the `/goal` above.
 - Remove the task files after completing the task.
 - Do not create migration/backward-compatibility code unless explicitly requested.
 ```
@@ -266,6 +265,6 @@ Do not start implementation in `plan-doc`.
 - Writing multi-command verification blocks that are not copy-paste safe. When commands change directories across packages/apps, use subshells like `(cd packages/foo && bun run build)` / `(cd apps/api && bun run build)` or explicitly reset to the repo root between commands; avoid sequential `cd a && ...` then `cd b && ...` blocks that fail because the shell remains in `a`.
 - Planning only the happy-path file edit while missing update-path mechanics around it (for example React memo comparators, hook dependency arrays, prop sanitization, stale async callbacks, or library-managed DOM state).
 - Silently choosing an architectural/API decision that should be surfaced.
-- Treating missing local Codex CLI as relevant to the default review stack. The Codex-style leg is the Hermes delegated reviewer; only Claude Code availability affects the separate `claude-i` lane.
+- Treating local Codex CLI availability as relevant to the default review stack. The Hermes delegated review uses only `delegate_task`; only Claude Code availability affects the separate CLI-based `claude-i` lane.
 - Putting vague TODOs like "fix errors" instead of atomic file/function-level tasks.
 - Starting code implementation after writing the plan.

@@ -31,5 +31,6 @@ for message in reversed(data['messages']):
 
 - A dispatch id alone is not a review pass.
 - A `Turn ended` log line alone is not a review pass; the verdict still must be recovered and parsed.
-- Prefer recovering the Hermes delegate before using a local Codex/Claude fallback.
+- Recover the Hermes delegate or dispatch a fresh bounded `delegate_task` reviewer. If no parseable verdict is available, save a blocker and stop before staging; never invoke or inspect a local Codex CLI as fallback.
+- Claude Code remains a separate, explicitly requested CLI review lane through `claude-i`; it is not a local Codex fallback.
 - Do not encode local CLI auth/setup failures as durable constraints; they are environment state, not workflow rules.
