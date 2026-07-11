@@ -28,12 +28,12 @@ When a task may already be satisfied:
 ## Review sequencing in multi-task batches
 
 - Build one immutable bundle per task directory; do not mix unrelated task diffs unless the tasks are intentionally coupled.
-- Dispatch Codex-style delegate reviews per bundle and run the required Claude Code `claude-i` review on the same saved bundle(s).
-- If Claude approves but the Codex-style delegate has not returned, save `reviews/codex-implementation-review-pending.json` with:
+- Finalize one immutable bundle per task, then launch every independent interactive Codex TUI and Claude Code `claude-i` lane before waiting on any generated-task reviewer. Use the same saved bundle for both lanes of each task.
+- If Claude approves but the interactive Codex TUI has not produced a parseable attested verdict, save `reviews/codex-implementation-review-pending.json` with:
   - `passed: false`
   - `status: BLOCKED_PENDING_CODEX_REVIEW`
-  - delegation id
-  - bundle path
+  - tmux session and raw pane capture
+  - bundle path and hash
   - completed companion review artifact(s)
   - exact resume steps
 - Leave live TODO rows `[!]` for the pending Codex review and aggregate `final-review.json`. Do not create a passing aggregate until the Codex verdict is saved or explicitly waived.

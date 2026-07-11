@@ -1,6 +1,6 @@
 name: hermes-planning-workflows
-version: 0.1.0
-description: Contract-first planning, execution, cleanup, simplification, Claude interactive review, and safety hooks for Hermes Agent.
+version: 0.1.3
+description: Contract-first planning, ordered task waves, parallel interactive Codex and Claude review, execution, cleanup, simplification, and safety hooks for Hermes Agent.
 skills:
   - skills/software-development/planning-workflows
   - skills/software-development/plan-doc
@@ -21,3 +21,4 @@ optional_dependencies:
   commands:
     - tmux
     - claude
+    - codex

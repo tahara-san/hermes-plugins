@@ -16,7 +16,7 @@ Use when resuming an existing `plan-code` task where implementation, verificatio
 
 - Live TODO has no unchecked real task items.
 - Final report exists and records verification/review/deviations/no-commit truthfully.
-- Aggregate final review passed and references the raw Codex-style reviewer artifact.
+- Aggregate final review passed and references the raw interactive Codex TUI pane plus normalized attested verdict artifact.
 - Any pending review artifact is resolved/superseded.
 - `git diff --check` still passes after doc edits.
 - Historical review bundles are treated as preserved evidence, not live TODO state, if they contain old snapshots.

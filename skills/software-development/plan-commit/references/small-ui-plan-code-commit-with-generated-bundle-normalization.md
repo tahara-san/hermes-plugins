@@ -10,7 +10,7 @@ Use this reference when a small frontend/UI `plan-code` task has completed imple
 2. Before staging, prove the task is commit-ready:
    - `todo.md` has no unchecked/pending rows;
    - final aggregate review and final artifact consistency artifacts exist and say passed;
-   - the active Codex-style review artifact is saved, and any earlier async delegate reviews that became stale after reviewer-driven changes are marked superseded rather than counted.
+   - the active Codex interactive TUI review artifact is saved, and any earlier async delegate reviews that became stale after reviewer-driven changes are marked superseded rather than counted.
 3. Stage only the implementation/test files and the intended task directory. Do not use broad `git add -A` while other work could exist.
 4. Generated Markdown review bundles can fail `git diff --cached --check` on blank lines with trailing spaces created by embedded diffs/snapshots. Normalize only the intended generated bundle by stripping line-end whitespace.
 5. After normalization, write a narrow post-normalization consistency artifact that self-excludes and states source/test content was unchanged; stage it with the normalized bundle.

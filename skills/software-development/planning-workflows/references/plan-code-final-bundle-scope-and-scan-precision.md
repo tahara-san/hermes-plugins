@@ -35,7 +35,7 @@ A final reviewer can approve implementation semantics but still find the bundle 
    - save that reviewer output as superseded, even if it says `APPROVED`;
    - regenerate the bundle with the corrected path/scope language;
    - rerun both mandatory review legs against the corrected bundle.
-6. Do not finalize on a dispatch alone. If the corrected Codex-style delegate is pending, save a pending artifact naming the exact delegation id and bundle path.
+6. Do not finalize on a started session alone. If the corrected interactive Codex TUI is pending, save a pending artifact naming the tmux session, raw pane capture, and exact bundle path/hash.
 
 ## Good bundle validation checklist
 

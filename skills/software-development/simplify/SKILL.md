@@ -1,6 +1,6 @@
 ---
 name: simplify
-description: Use after code has been written or modified, or when the user says /simplify. Reviews recently changed files for clarity, consistency, and maintainability while preserving exact behavior. Produces or applies narrow simplifications before independent/Codex-style review.
+description: Use after code has been written or modified, or when the user says /simplify. Reviews recently changed files for clarity, consistency, and maintainability while preserving exact behavior. Produces or applies narrow simplifications before required independent review.
 version: 1.0.0
 author: Hermes Agent (migrated from Claude Code code-simplifier agent)
 license: MIT
@@ -18,7 +18,7 @@ Simplify and refine code for clarity, consistency, maintainability, and project 
 
 Use this skill:
 - after a logical chunk of code is written or modified
-- before independent/Codex-style review in the `plan-code` workflow
+- before required independent review in the `plan-code` workflow
 - when the user says `/simplify` or asks to simplify/refine changed code
 - after fixing review findings or build/test failures
 

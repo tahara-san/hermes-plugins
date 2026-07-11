@@ -1,6 +1,6 @@
 # Plan-doc superseded reviews with valid current blockers
 
-Use when a `plan-doc` delegate/Codex-style review returns after its reviewed bundle has already been superseded, but the stale review contains concrete blockers that may still apply to the current task docs.
+Use when a historical delegated `plan-doc` review returns after its reviewed bundle has already been superseded, but the stale review contains concrete blockers that may still apply to the current task docs. Such a legacy result is evidence only and never substitutes for the current interactive Codex TUI lane.
 
 ## Pattern
 
@@ -9,7 +9,7 @@ Use when a `plan-doc` delegate/Codex-style review returns after its reviewed bun
 3. **Adjudicate each finding against the active docs/source.** A superseded failure can still identify a real current plan defect, especially source-contract mismatches or under-specified rollback/failure semantics.
 4. **Patch only valid current blockers.** If a stale finding still applies, update the active `spec.md` / `todo.md` / kickoff prompt narrowly. Mark every pending or passed review for the pre-patch current bundle as superseded.
 5. **Regenerate one canonical bundle.** Preserve the previous bundle as superseded, then rebuild `reviews/plan-doc-review-bundle.md` from current active docs and relevant source. Validate no truncation/cache markers and run scoped `git diff --check`.
-6. **Rerun both required plan-doc review lanes.** A companion approval against the pre-patch bundle and a pending delegate for that bundle are stale even if they return later.
+6. **Rerun both required plan-doc review lanes.** Launch the interactive Codex TUI and Claude Code lanes against the same regenerated bundle before waiting on either. Any approval or pending historical review for the pre-patch bundle is stale even if it returns later.
 7. **Avoid infinite polish loops.** If a current reviewer approves and labels remaining notes as minor/non-blocking polish, record them in the reviewer JSON/aggregate rather than editing again, unless the note exposes a real implementation footgun that would materially change acceptance criteria or tests.
 
 ## Findings that should usually be adopted
@@ -31,7 +31,7 @@ Use when a `plan-doc` delegate/Codex-style review returns after its reviewed bun
 - `current-bundle-reviews-superseded-*.json`: names stale pending/completed review lanes after a live doc patch.
 - `plan-doc-review-bundle-*-superseded.md`: previous bundle snapshot.
 - Current `plan-doc-review-bundle.md`: rebuilt from active docs/source only.
-- Current pending artifact names the active delegation id and resume steps.
+- Current pending artifact names the active tmux session, raw pane capture, bundle identity, and resume steps.
 
 ## Pitfalls
 

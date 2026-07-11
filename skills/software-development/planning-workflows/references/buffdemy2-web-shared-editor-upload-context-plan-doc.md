@@ -25,7 +25,7 @@ For Article-only backend upload contracts:
 
 ## Review/rebundle lesson
 
-When an async Codex-style review returns for a superseded plan bundle, still disposition concrete findings against the current docs. If the finding exposes a live footgun (as this shared-editor context leak did), patch the docs, mark older review artifacts stale, regenerate the bundle, and rerun both required review legs. A stale review cannot satisfy the gate, but its findings can still be valid.
+When any stale review returns for a superseded plan bundle, still disposition concrete findings against the current docs. If the finding exposes a live footgun (as this shared-editor context leak did), patch the docs, mark older review artifacts stale, regenerate the bundle, then launch both required interactive review legs against that same immutable bundle before waiting on either. A stale review cannot satisfy the gate, but its findings can still be valid.
 
 ## Implementation review pitfalls
 

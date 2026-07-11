@@ -28,12 +28,12 @@ Use this when a large `plan-code` task appears complete, but the user says “co
    - Include the audit result: unchecked live docs should be `none`.
 
 4. **Rerun required review legs after any doc edit**
-   - If Codex-style review was blocked by a transient limit, retry it on resume before claiming completion.
-   - If a non-blocking reviewer suggestion is implemented, previous approvals are stale; rerun both required legs against the regenerated bundle.
+   - If the interactive Codex TUI review was blocked by a transient limit, retry the same pinned tmux flow on resume before claiming completion.
+   - If a non-blocking reviewer suggestion is implemented, previous approvals are stale; launch both required independent legs against the regenerated bundle before waiting on either.
    - If a reviewer returns further non-blocking suggestions about excluded/historical artifacts, prefer recording them instead of applying them when applying them would create another stale-review loop and they do not affect live task correctness.
 
 5. **Close only after final artifact save**
-   - Save the Codex-style artifact and Claude/other external-review artifact.
+   - Save the interactive Codex raw-pane/normalized-verdict artifact and the Claude Code artifact.
    - Mark any retry TODO complete only after the artifact exists.
    - Run a final local audit: `git diff --check`, unchecked live-doc scan, stale phrase scan, and artifact existence check.
 

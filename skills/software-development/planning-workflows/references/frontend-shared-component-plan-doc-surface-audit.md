@@ -27,7 +27,7 @@ A plan changes layout/order/visual hierarchy of a reusable component, especially
 
 ## Review/pending gate notes
 
-- A dispatched delegate review is not approval. If it does not re-enter and cannot be recovered from logs/session history, save a `*-pending.json` artifact naming the delegation id, reviewed bundle, completed companion review, and exact resume steps.
+- A started reviewer session is not approval. If its verdict cannot be recovered, save a `*-pending.json` artifact naming the reviewer/tmux session, raw capture, reviewed bundle identity, completed companion review, and exact resume steps. The mandatory Codex lane must be recovered or rerun through bare interactive `codex` in managed tmux, never through a delegated substitute.
 - Do not create an aggregate plan-review verdict until all mandatory legs have a saved passing verdict or the user explicitly waives a leg.
 
 ## Example acceptance criteria additions

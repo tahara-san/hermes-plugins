@@ -5,7 +5,7 @@ Use when a mandatory plan-code review leg returns `CHANGES_REQUIRED` against a b
 ## Pattern
 
 1. **Save the stale verdict as superseded, not active approval/failure.**
-   - Record the delegation/session id, reviewed bundle path, return time, and why the bundle is stale.
+   - Record the reviewer session id, reviewed bundle path, return time, and why the bundle is stale.
    - Preserve the reviewer's concrete findings for adjudication.
 
 2. **Adjudicate findings against the live tree.**
@@ -32,7 +32,7 @@ Use when a mandatory plan-code review leg returns `CHANGES_REQUIRED` against a b
 
 7. **Rerun every mandatory review lane.**
    - Prior approvals are stale after source/test/task-doc edits.
-   - A fresh Codex-style delegate can run while the required Claude Code Opus 4.8 @ xhigh effort lane is blocked, but the phase remains incomplete until all mandatory lanes pass or the user explicitly waives/replaces one.
+   - Launch the fresh interactive Codex TUI and Claude Code Opus 4.8 @ xhigh effort lanes before waiting on either. If one lane is blocked, the other may finish independently, but the phase remains incomplete until all mandatory lanes pass or the user explicitly waives/replaces one.
 
 ## Blocked reviewer artifacts
 

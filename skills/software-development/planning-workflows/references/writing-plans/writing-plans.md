@@ -140,11 +140,11 @@ When the user asks to convert logged issues into an implementation plan (for exa
 3. Deduplicate overlapping issues before planning; if one issue is a subset of another, group them into one task instead of creating parallel plans.
 4. Inspect the target source and nearby tests before drafting; don't plan from the issue text alone.
 5. Decide and document grouping, scope, out-of-scope boundaries, proposed files, error codes/API shape, and verification commands.
-6. Preserve the user's review workflow in the plan: simplification review first, then Codex-style review, then tests/build. If the exact slash commands are unavailable, keep the same conceptual gates instead of dropping them.
-7. Do not remove source issue files unless the user explicitly asks for cleanup behavior.
+6. Preserve the user's review workflow in the plan: simplification first, then finalize one immutable bundle and launch the required interactive Codex TUI and Claude Code review lanes before waiting on either; keep the planned verification/build gates explicit.
+7. Do not remove source issue files; `plan-issues` is docs-only and preserves them as audit/source records.
 8. After implementation, distinguish generated task docs from source issue logs:
    - Mark the task `todo.md` complete when the implementation/review/verification steps are done.
-   - Leave the original `tasks/out-of-scope-issues/...` files in place by default; they are audit/source records, not the completion marker.
+   - Leave the original `tasks/out-of-scope-issues/...` files in place; they are audit/source records, not the completion marker.
    - If the user asks whether remaining issue files are complete, answer by classifying included vs skipped/manual files and cite the implementation task/commit that resolved the included files.
 
 See `references/out-of-scope-issue-planning.md` for the Claude `/plan-issues` workflow shape and Hermes adaptation notes.
@@ -154,9 +154,9 @@ See `references/out-of-scope-issue-planning.md` for the Claude `/plan-issues` wo
 For plans that will drive code changes, especially issue-fix plans:
 
 - Run a simplification pass before external/independent review: ask whether the implementation can be narrower, clearer, or less coupled without losing correctness.
-- Run an independent review of the plan before presenting it as final. Feed the reviewer the plan plus relevant source context, and revise on CRITICAL or worth-addressing WARNING findings.
+- Run the required interactive Codex TUI and Claude Code reviews of one finalized immutable bundle before presenting the plan as final; launch both independent lanes before waiting on either.
 - Re-review after revisions until the plan is clean or explicitly documents ignored warnings.
-- Do not treat missing local setup for a reviewer tool as a reason to skip review; use an available independent-review mechanism while preserving the intended gate.
+- Fail closed when a required reviewer tool, pinned model/effort attestation, or parseable verdict is unavailable unless the user explicitly waives that lane. Never substitute a Hermes delegated reviewer or noninteractive Codex command for the interactive Codex TUI lane.
 
 For high-risk migrations or destructive clean-slate resets:
 

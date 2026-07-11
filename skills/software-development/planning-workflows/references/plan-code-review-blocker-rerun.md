@@ -41,10 +41,10 @@ Mandatory review legs can return after the parent agent has already saved a pend
 
 1. Save the returned verdict as its own durable artifact first; do not discard it because a pending artifact already exists.
 2. If it fails, mark any prior pending artifact as superseded by the returned failure, fix the blocker, rerun impacted verification, regenerate the bundle, and rerun all mandatory review legs.
-3. If a fresh rerun does not surface within a bounded wait, save a new pending artifact with the exact delegation id and resume steps; do not create the aggregate final review.
-4. If a rerun remains missing after context compaction, dispatch a replacement review and update task docs/artifacts with the replacement delegation id so the next session can recover.
+3. If a fresh rerun does not produce a verdict within a bounded wait, save a new pending artifact with the exact reviewer session, latest raw capture, bundle identity, and resume steps; do not create the aggregate final review.
+4. If a rerun remains unrecoverable after context compaction, start a replacement interactive lane against the unchanged current bundle and update task docs/artifacts with the replacement session so the next session can recover. For Codex, keep the bare interactive TUI/tmux contract; never substitute a delegated reviewer.
 5. Only create `final-review.json` after a current passing verdict/waiver exists for every mandatory leg; stale approvals from before source/test/task-doc changes do not count.
-6. If a replacement review was dispatched because an earlier rerun was missing, but the earlier rerun later returns passing after the aggregate gate is already complete, save the replacement's eventual result as supplemental/historical evidence. Do not reopen a completed gate or start another review loop unless the late replacement reports a blocker or new current-risk finding. Update the replacement pending placeholder, aggregate review JSON (for example `supplemental_reviews`), notes/final report, and run lightweight JSON/marker validation only.
+6. If a replacement review was started because an earlier rerun was missing, but the earlier rerun later returns passing after the aggregate gate is already complete, save the replacement's eventual result as supplemental/historical evidence. Do not reopen a completed gate or start another review loop unless the late replacement reports a blocker or new current-risk finding. Update the replacement pending placeholder, aggregate review JSON (for example `supplemental_reviews`), notes/final report, and run lightweight JSON/marker validation only.
 
 ## Pitfalls
 

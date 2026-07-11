@@ -31,8 +31,8 @@ These tests are more persuasive than broad snapshots because they prove the exac
 ## Review rerun and final artifact sequence
 
 - Any source/test/i18n change after one review lane passes makes every implementation review lane stale; save the old verdict as superseded, rerun impacted verification, regenerate the final bundle, then rerun both lanes.
-- If one lane passes while a Codex-style delegate is pending, save a pending artifact and stop fail-closed until the parseable delegate verdict arrives.
-- When the final delegate returns, save it as a current verdict, mark the pending artifact `COMPLETED_SUPERSEDED_BY_VERDICT`, then write the aggregate final review.
+- If one lane passes while the interactive Codex TUI is pending, save a pending artifact with its tmux session, raw pane capture, and bundle identity, then stop fail-closed until a parseable attested verdict exists.
+- When the interactive Codex verdict is complete, save it as the current verdict, mark the pending artifact `COMPLETED_SUPERSEDED_BY_VERDICT`, then write the aggregate final review.
 - Task-doc/TODO updates after implementation review should be followed by a narrow artifact-consistency check that excludes the consistency artifact itself; do not regenerate the implementation bundle after the raw reviewer approvals unless both review lanes rerun.
 
 ## Non-blocking suggestions policy

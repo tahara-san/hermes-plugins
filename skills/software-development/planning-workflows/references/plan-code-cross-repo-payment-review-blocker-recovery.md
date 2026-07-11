@@ -4,13 +4,13 @@ Use this when a Buffdemy `plan-code` phase lives mostly in `buffdemy2-web`, task
 
 ## Pattern
 
-1. **Save the failing reviewer artifact immediately.** Preserve the exact JSON/verdict and delegation id. Mark any existing pending/approval artifacts stale once source/tests will change.
+1. **Save the failing reviewer artifact immediately.** Preserve the exact JSON/verdict and reviewer session identity. Mark any existing pending/approval artifacts stale once source/tests will change.
 2. **Adjudicate against the live tree before coding.** Reviewers can mix current and stale evidence. If a finding is already fixed/covered, prove it with current source/tests and record the adjudication. Do not churn just to satisfy a stale/misread finding.
 3. **For valid blockers, use RED/GREEN in the implementation repo.** Add the smallest regression near the affected component/model. Verify RED fails for the expected product reason, then patch production code and verify GREEN.
 4. **Rerun proportional verification before review.** At minimum: the new focused regression, adjacent existing regression for related reviewer concern, full touched component/model suite, expanded phase-focused suite, lint/i18n, diff hygiene, full unit, and build when the prior bundle cited those gates.
 5. **Regenerate the canonical bundle in the task-artifact repo.** Include: post-blocker adjudication, RED/GREEN evidence, latest verification output, in-scope frontend diff/untracked file contents, backend contract snapshots if the review depends on them, and live task docs. Validate no truncation/cache placeholders.
-6. **Rerun every mandatory review lane on the regenerated bundle.** A Claude Code Opus 4.8 @ xhigh effort approval from before the Codex-driven source/test fix is stale. Do not update TODO/progress to complete until both fresh lanes pass.
-7. **Save a new pending artifact for async Codex-style review.** Name the new delegation id, regenerated bundle path, superseded artifacts, companion reviewer state, verification evidence, and exact resume steps.
+6. **Rerun every mandatory review lane on the regenerated bundle.** Launch the interactive Codex TUI and Claude Code Opus 4.8 @ xhigh effort lanes against that bundle before waiting on either. A prior approval from before the reviewer-driven source/test fix is stale. Do not update TODO/progress to complete until both fresh lanes pass.
+7. **Save a new pending artifact if the interactive Codex TUI has not produced a parseable attested verdict.** Name the managed tmux session, raw pane capture, regenerated bundle path/hash, superseded artifacts, companion reviewer state, verification evidence, and exact resume steps.
 8. **For interactive Claude Code Opus 4.8 @ xhigh effort, bound read-only exploration.** Approve prepared bundle reads and narrowly relevant source/status checks. If it roams after several checks, interrupt and request a no-tools verdict from reviewed context.
 
 ## Payment/UI example checklist
@@ -27,4 +27,4 @@ Use this when a Buffdemy `plan-code` phase lives mostly in `buffdemy2-web`, task
 Use precise status labels:
 - `CHANGES_REQUIRED` reviewer artifacts are evidence, not final failure after the fix.
 - `APPROVED` artifacts from before a source/test change are `stale/superseded`, even if their findings remain useful.
-- The phase remains incomplete while a required async review leg is pending, even with green verification and a passing companion review.
+- The phase remains incomplete while a required interactive review leg is pending, even with green verification and a passing companion review.

@@ -11,7 +11,7 @@ Use this when converting a parked `tasks/out-of-scope-issues/...` file into a `t
 5. **Make verification commands honest for untracked task docs.** `git diff --check -- tasks/<slug>` does not check untracked files unless Git knows about them. For newly created plan docs, either use `git add -N` deliberately or add a small explicit scan over top-level task markdown. If review artifacts are excluded from the reviewed scope, say the scan intentionally targets top-level task docs and excludes `reviews/`.
 6. **Keep duplicate kickoff snippets synchronized.** If the spec includes an embedded copy-paste prompt and there is also a standalone `kickoff-prompt.md`, update both after reviewer suggestions. Reviewers often catch stale duplicate command blocks or phase numbering in the embedded prompt after the canonical section was fixed.
 7. **Supersede and rerun after useful non-blocking suggestions.** Save passing-but-superseded raw reviews and bundles, patch only task docs, regenerate the bundle, and rerun both required plan-doc review legs. Do not churn on purely cosmetic suggestions after final approval; record their disposition in the aggregate.
-8. **Recover final delegate reviews before marking the gate complete.** If `delegate_task` does not surface in the parent chat, use logs to find the subagent session and recover the final verdict with `session_search(session_id=...)`. A dispatch ID is not approval.
+8. **Recover the final interactive Codex review before marking the gate complete.** Inspect the managed tmux session and save the raw pane plus normalized verdict tied to the current bundle. If no parseable attested verdict is recoverable, rerun bare `codex` in managed tmux against the same current bundle; never substitute `delegate_task`, `codex exec`, or `codex review`. A session id or startup banner is not approval.
 9. **Use a final artifact-consistency check after artifact-only edits.** Writing raw review artifacts, aggregate JSON, or changing a TODO review row after semantic review makes the artifact set differ from the reviewed bundle. Save a narrow consistency JSON that checks required files, parseable verdicts, issue removal, TODO status, and explicitly excludes itself from scope.
 
 ## Good final report shape
@@ -19,7 +19,7 @@ Use this when converting a parked `tasks/out-of-scope-issues/...` file into a `t
 - Name the new task dir and deleted issue file.
 - State whether current code already appears to satisfy the issue.
 - List verification commands and real outputs.
-- Name final Codex-style, Claude Code, aggregate, and artifact-consistency artifacts.
+- Name final interactive Codex TUI, Claude Code, aggregate, and artifact-consistency artifacts.
 - Report unrelated pre-existing dirty work separately.
 
 ## Pitfalls

@@ -27,10 +27,10 @@ Use when a user asks for a frontend plan while explicitly saying backend work is
 
 ## Review artifact handling
 
-For explicit `plan-doc`, if one required review leg passes but the Codex-style delegate review remains pending:
+For explicit `plan-doc`, if one required review leg passes but the interactive Codex TUI review remains pending:
 
 - save the completed raw review artifact immediately;
-- save a `codex-*-pending.json` artifact naming the delegation id and bundle path;
+- save a `codex-*-pending.json` artifact naming the tmux session, raw pane capture, and bundle path/hash;
 - save a blocked aggregate (for example `plan-review-blocked.json`) instead of a passing aggregate;
 - final response must say the plan docs exist but the full review gate is pending/blocked, not complete.
 

@@ -1,62 +1,40 @@
-# Plan-doc async superseded review drain
+# Plan-doc superseded review drain
 
-Use when old async `delegate_task` / Codex-style plan-doc reviews return after the live task docs have moved on to a newer bundle version.
+Use when an older review result returns after the live task docs have moved to a newer bundle version. Legacy delegated reviews may be retained as historical evidence, but they never satisfy the current interactive Codex TUI lane.
 
 ## Pattern
 
-1. **Classify the returned review by bundle version.** Compare the delegation id and reviewed bundle path in the async result to the current canonical bundle/pending artifact. If it is older, it is superseded evidence, not current approval.
-2. **Do not count stale approvals.** A passing review for `bundle-vN` does not satisfy the review gate for `bundle-vN+1` or later.
-3. **Disposition every concrete finding against the current docs.** For each blocker or non-blocking suggestion:
-   - If current docs already address it, record that in the superseded artifact reason.
-   - If it exposes a real current-risk footgun, patch only the task docs needed to remove the ambiguity.
-   - If it is optional polish or intentionally out of scope, record why no live patch is needed.
-4. **Save the old result durably.** Write `tasks/<slug>/reviews/codex-plan-doc-review-vN-superseded.json` or equivalent with:
-   - reviewer/delegation id
-   - reviewed bundle path
-   - raw verdict JSON
-   - `superseded: true`
-   - disposition / superseded reason
-5. **Update the current pending aggregate history.** Add the superseded artifact path to the active `plan-review-pending-vM.json` so future agents can reconstruct review history.
-6. **If live docs changed, regenerate and rerun.** Any patch to `spec.md`, `todo.md`, or intended plan artifacts makes the current bundle stale. Regenerate the next `plan-doc-review-bundle-vM+1.md` and rerun both required review legs against that bundle. Also write a new `plan-review-pending-vM+1.json` that explicitly supersedes the previous pending artifact, because any not-yet-returned reviewer for the old bundle is now stale even if it later passes.
-7. **If a stale final reviewer returns after the bundle advanced, still drain it as stale.** Even when the returned delegation was formerly the “final pending” review, once current docs moved to a later bundle its verdict cannot satisfy the gate. Save it as `codex-plan-doc-review-vN-superseded.json`, disposition its findings against the current docs, and keep waiting for the current bundle’s delegation.
-8. **If live docs did not change, keep the active pending gate unchanged.** Run a scoped artifact check such as `git diff --check -- tasks/<slug>` and report that the current required review remains pending.
+1. **Classify the returned review by bundle identity.** Compare its reviewed bundle path/hash with the current canonical bundle and pending artifact. An older result is superseded evidence, not current approval.
+2. **Do not count stale approvals.** A passing review for `bundle-vN` does not satisfy the gate for `bundle-vN+1`.
+3. **Disposition every concrete finding against the current docs.** Record whether each finding is already fixed, still applies, or is intentionally out of scope. Patch only concrete current-risk footguns.
+4. **Save the old result durably.** Write a `*-vN-superseded.json` artifact containing the reviewer/session identity, reviewed bundle identity, raw verdict, `superseded: true`, and disposition.
+5. **Update the current pending history.** Link the superseded artifact from the active pending aggregate so future agents can reconstruct the review sequence.
+6. **If live docs changed, regenerate and rerun.** Any patch to `spec.md`, `todo.md`, or intended plan artifacts makes the current bundle stale. Regenerate the bundle, then launch the interactive Codex TUI and Claude Code lanes against that same immutable bundle before waiting on either.
+7. **If live docs did not change, keep the current gate unchanged.** Run scoped artifact hygiene and report the current required review status.
 
 ## High-churn drain checklist
 
-When many old async reviews return after a plan-doc bundle has already advanced through several versions:
+1. Keep one explicit current canonical bundle and one current pending aggregate. Older pending artifacts are history only.
+2. Save every stale result separately and list it under `superseded_reviews`; never copy stale approval into current verdict fields.
+3. If a stale finding still exposes a concrete footgun, patch the current docs, supersede every current-bundle review artifact, regenerate, and rerun both independent interactive lanes.
+4. Do not write final `plan-review.json` until the current Codex and Claude artifacts identify the same finalized bundle and no post-review doc edits occurred.
 
-1. Keep one explicit **current canonical bundle** and one **current pending aggregate**. Older pending artifacts stay as history only.
-2. For each stale result, save `codex-plan-doc-review-vN-superseded.json` and add it to the current pending artifact's `superseded_reviews`; do not copy stale approvals into the current verdict fields.
-3. Disposition stale findings against the current docs in the superseded artifact reason. If the finding is already fixed, say so; if it is optional polish, say no live patch was made and why.
-4. If a stale or current review exposes a concrete test/acceptance footgun that still applies, patch only `spec.md`/`todo.md`, mark the now-current review artifacts stale/superseded, regenerate `plan-doc-review-bundle-vN+1.md`, and rerun both the Codex-style and Claude/default-model legs.
-5. Do not write the final aggregate `plan-review.json` until both reviewer artifacts name the same final bundle version and no post-review doc edits have occurred.
+## Current interactive Codex finalization checklist
 
-## Current delegate finalization checklist
-
-When the active/current async delegate finally returns after one or more stale delegates have been drained:
-
-1. Save the current delegate verdict as its own parseable artifact (for example `codex-plan-doc-review-<delegation-id>.json`) before writing the aggregate.
-2. Prove it reviewed the current bundle, not a stale one: compare the active pending artifact's delegation id, the canonical bundle path/hash, and core task-doc mtimes against the delegate dispatch time when available. If the core docs or bundle changed after dispatch, classify the verdict as stale and rerun both required review legs.
-3. If the current delegate passes and the companion Claude/default-model artifact for the same bundle is already saved, write the aggregate `plan-review.json` and update the pending artifact to `COMPLETED_BY_PLAN_REVIEW` (or equivalent) instead of leaving a stale `PENDING_REQUIRED_REVIEW` file.
-4. Review artifacts written after reviewer verdicts normally should not stale the plan-doc bundle. Record a self-exclusion note in the aggregate: the reviewed product is the task docs plus source/context bundle, while post-verdict raw/aggregate artifacts are evidence about the review.
-5. Record non-blocking suggestions without churn unless they identify a concrete current-bundle footgun. If you patch `spec.md`, `todo.md`, `kickoff-prompt.md`, `notes.md`, or regenerate the bundle after a suggestion, all prior approvals are stale and both review legs must rerun.
-6. After writing the verdict and aggregate artifacts, run a scoped hygiene check such as `git diff --check -- tasks/<slug> <converted-issue-path>` plus any issue-removal/status checks, and include that real output in the final response.
+1. Recover the managed tmux session and save its raw pane plus normalized verdict before writing the aggregate.
+2. Prove it reviewed the current bundle by matching bundle path/hash and verify the GPT-5.6 SOL @ xhigh banner attestation. If docs or bundle changed after launch, classify the verdict as stale and rerun both required lanes.
+3. If Codex passes and the Claude Code artifact for the same bundle is already saved, write `plan-review.json` and update the pending artifact to completed rather than leaving it active.
+4. Review artifacts written after verdicts do not normally stale the product bundle when they are explicitly excluded as evidence-only files.
+5. If any substantive task document changes after a finding, all approvals are stale and both lanes must rerun.
 
 ## Pitfalls
 
-- Do not overwrite the current pending artifact with an older review's passing verdict.
-- Do not create the aggregate `plan-review.json` until the required Codex-style verdict for the current canonical bundle is saved and the Claude/default-model leg for that same bundle is also saved or explicitly waived.
-- Avoid self-referential bundle churn: exclude review artifacts from the reviewed scope, or clearly document their exclusion.
-- If multiple stale async reviews return, drain them one by one, saving each as superseded evidence and patching/rerunning only when a finding still applies to the current docs.
-- If the final current-bundle review passes but names a concrete coverage gap (for example duplicate-submit prevention, whitespace-only input, selected-state assertions), treat it as a footgun, not optional polish: patch the plan and rerun the full pair instead of aggregating immediately.
-- Do not leave an active pending artifact saying `pending` after the aggregate has been saved; update it to point at the aggregate and the saved current reviewer artifacts.
+- A tmux session id, startup banner, or partial pane is not approval.
+- Never replace the current interactive Codex lane with a legacy `delegate_task` result, `codex exec`, or `codex review`.
+- Do not create the aggregate until both required current-bundle verdicts are saved or a lane is explicitly waived.
+- Avoid self-referential bundle churn by excluding review evidence from reviewed product scope.
+- Do not leave an active pending artifact after the aggregate has been saved.
 
 ## Final response shape
 
-Report:
-
-- saved superseded artifact path(s)
-- whether live docs were patched
-- current canonical bundle path
-- current required review status/delegation id
-- real scoped verification output
+Report the superseded artifact paths, whether live docs changed, current canonical bundle path/hash, current required review status/session, and real scoped verification output.

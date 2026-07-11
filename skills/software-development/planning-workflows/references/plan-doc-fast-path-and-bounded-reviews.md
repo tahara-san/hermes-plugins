@@ -10,7 +10,7 @@ A `plan-doc` session can stall when the agent front-loads too much inspection be
 
 1. **Bound discovery first.** Read only the source issue/task, `git status --short`, package/test-script context, and the smallest relevant config/source excerpts needed to avoid hallucinating.
 2. **Create the task bundle early.** Write `spec.md`, `todo.md`, kickoff prompt, and the initial review bundle before doing broad searches.
-3. **Review the concrete bundle.** Run Codex-style and Claude Code reviews against the saved bundle rather than continuing open-ended repo exploration.
+3. **Review the concrete bundle.** Finalize one immutable bundle, then launch the interactive Codex TUI and Claude Code reviews against it before waiting on either, rather than continuing open-ended repo exploration.
 4. **Adjudicate before churning.** Do not apply non-blocking suggestions that are already satisfied, factually stale, or based on unrelated plan shapes; record the adjudication in the review artifact instead.
 5. **Only rerun reviews when plan docs changed.** Saving raw/aggregate review artifacts after approval does not require editing the plan docs; avoid unnecessary reruns unless the reviewed plan content changed.
 

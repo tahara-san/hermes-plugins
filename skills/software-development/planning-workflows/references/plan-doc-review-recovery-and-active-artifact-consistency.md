@@ -1,6 +1,6 @@
 # Plan-doc review recovery + active artifact consistency
 
-Use this when a required `plan-doc` review leg returns useful non-blocking suggestions, a delegate review finishes but does not surface in the parent chat, or final artifact-consistency checks flag historical/superseded review files instead of active task docs.
+Use this when a required `plan-doc` review leg returns useful non-blocking suggestions, an interactive reviewer finishes without a saved verdict artifact, or final artifact-consistency checks flag historical/superseded review files instead of active task docs.
 
 ## Pattern
 
@@ -14,17 +14,16 @@ Use this when a required `plan-doc` review leg returns useful non-blocking sugge
    - Validate the bundle before dispatching reviewers: no `READ_ERROR`, truncation markers, dedup/cache placeholders, or failed scan transcripts.
    - For static/secret scans, prefer computing the scan inside the bundle-generation script and embedding the result (`NO_FINDINGS` or concrete findings). Avoid brittle shell heredocs inside nested Python/tool scripts; a failed scan transcript is not evidence.
 
-3. **Recover completed delegate reviews instead of rerunning blindly.**
-   - A dispatched `delegate_task` is not approval, but logs may prove the subagent completed.
-   - Search `~/.hermes/logs/agent.log` for the delegation id or unique prompt phrase, find the subagent session id, and confirm `Turn ended: reason=text_response`.
-   - Use `session_search(session_id=..., profile="default")`; if Hermes saves a large transcript to `/tmp/hermes-results/...`, parse that JSON and extract the last assistant message.
-   - Save the recovered parseable verdict with the recovery path in the review artifact.
+3. **Recover completed interactive reviews instead of rerunning blindly.**
+   - A started tmux/TUI session is not approval, but its pane or saved transcript may contain a complete verdict.
+   - For Codex, inspect the managed tmux session and capture a wide pane window; require the current bundle identity, GPT-5.6 SOL @ xhigh attestation, and explicit parseable verdict.
+   - Save the raw pane and normalized verdict with the recovery path. If no complete verdict is recoverable, rerun bare interactive `codex` against the same current bundle; never substitute `delegate_task`, `codex exec`, or `codex review`.
 
 4. **Defend bundles against terminal redaction.**
    - Hermes terminal output may mask secret-looking environment values (for example `TEST_E2E_AUTH_HARDENING=1` can display as `TEST_E2E_AUTH_HARDENING=***`). Reviewers can misread the masked display as the source value and fail realistic verification commands.
    - When a current runnable command includes an env var that may be redacted, add explicit prose to the review bundle stating the intended literal value and why it is safe/required.
    - Embed a raw ordinal/byte proof around the assignment from direct filesystem reads, e.g. show `[84, ..., 61, 49, 32, ...]` with `49` immediately after `=` for literal digit `1`.
-   - Tell both Codex-style and Claude reviewers not to fail solely on redacted terminal-rendered text; they should use the bundle prose plus ordinal proof to determine the actual source value.
+   - Tell both the interactive Codex TUI and Claude Code reviewers not to fail solely on redacted terminal-rendered text; they should use the bundle prose plus ordinal proof to determine the actual source value.
    - If a reviewer already failed on redacted display, save that verdict as `CHANGES_REQUIRED`/superseded evidence, regenerate the bundle with the redaction note and ordinal proof, then rerun all required review legs on the new bundle.
 
 5. **Scope final artifact-consistency to active artifacts.**
@@ -37,7 +36,7 @@ Use this when a required `plan-doc` review leg returns useful non-blocking sugge
 
 - Final bundle path.
 - Static-scan and `git diff --check` status.
-- Raw Codex-style artifact path and whether recovery was needed.
+- Raw interactive Codex TUI artifact path, normalized verdict path, and whether recovery was needed.
 - Raw Claude Code artifact path and observed model/status.
 - Superseded artifacts list.
 - Whether any post-review edits occurred and why they do not stale the reviewed plan (for example, aggregate artifact creation or marking Phase 0 review rows complete after raw reviews pass).

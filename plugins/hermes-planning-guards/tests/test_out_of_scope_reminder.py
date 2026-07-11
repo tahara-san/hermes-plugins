@@ -1,5 +1,6 @@
 from hermes_planning_guards.out_of_scope_reminder import (
     PRE_VERIFY_MESSAGE,
+    REMINDER,
     TRANSFORM_GUARD_NOTE,
     contains_issue_like_language,
     explicitly_says_no_issue_to_log,
@@ -22,6 +23,17 @@ def test_pre_llm_call_injects_context():
     assert "context" in result
     assert "tasks/out-of-scope-issues" in result["context"]
     assert "Dependabot" in result["context"]
+
+
+def test_reminder_preserves_current_out_of_scope_policy_contract():
+    assert "tasks/out-of-scope-issues/<priority>/<YYYYMMDD>_<short-kebab>.md" in REMINDER
+    assert "tasks/out-of-scope-issues/<priority>/manual/<YYYYMMDD>_<short-kebab>.md" in REMINDER
+    assert "critical, high, medium, low, proposal, other" in REMINDER
+    sections = ["**Issue**", "**Location**", "**Severity**", "**Context**", "**Suggested Fix**"]
+    offsets = [REMINDER.index(section) for section in sections]
+    assert offsets == sorted(offsets)
+    assert "existing matching issue" in REMINDER
+    assert "Dependabot" in REMINDER
 
 
 def test_contains_issue_like_language_uses_focused_trigger_set():

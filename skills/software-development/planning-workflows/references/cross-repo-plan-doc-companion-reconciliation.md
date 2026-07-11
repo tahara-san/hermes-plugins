@@ -12,7 +12,7 @@ Use when an explicit `plan-doc` task in one repo discovers an existing companion
    - companion task docs,
    - `git status --short`/diff stat for both repos,
    - relevant source excerpts from both repos.
-5. If a reviewer returns non-blocking plan-footgun notes and you patch docs, mark the old review artifact superseded, regenerate the bundle, and rerun required review legs. A pending Codex-style delegate verdict remains a blocker to aggregate completion.
+5. If a reviewer returns non-blocking plan-footgun notes and you patch docs, mark the old review artifact superseded, regenerate the bundle, and rerun required review legs. A pending interactive Codex TUI verdict remains a blocker to aggregate completion; recover it through the managed tmux session and raw-pane artifact, never through a delegated reviewer substitute.
 
 ## Done state
 

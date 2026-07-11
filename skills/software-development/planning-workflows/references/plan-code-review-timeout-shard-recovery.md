@@ -1,15 +1,15 @@
 # Plan-code review timeout shard recovery
 
-Use this when a mandatory `plan-code` Codex-style delegate review times out on a large final bundle, and follow-up sharded delegates also time out or return a mixed result.
+Use this when a mandatory `plan-code` interactive Codex TUI review stalls on a large final bundle, and follow-up narrower interactive runs also stall or return a mixed result.
 
 ## Pattern
 
 1. Treat every timeout as a failed/incomplete gate, not approval.
 2. Save the timeout as a durable artifact before retrying. Include:
-   - delegation id;
+   - tmux session and latest raw pane capture;
    - reviewed bundle path;
    - status (`timeout` / no parseable verdict);
-   - duration/API-call count if known;
+   - elapsed time and last visible TUI state if known;
    - exact narrower retry plan.
 3. Split by coherent workstreams first. If those still time out, create **micro-bundles**:
    - one contract per bundle;
@@ -26,9 +26,9 @@ Use this when a mandatory `plan-code` Codex-style delegate review times out on a
    - rerun focused GREEN plus proportional impacted suites/builds;
    - rerun simplify/static hygiene;
    - mark all earlier review attempts stale.
-5. After any source/test/task-doc/review-artifact edit, regenerate the current final implementation bundle before dispatching another mandatory review.
+5. After any source/test/task-doc/review-artifact edit, regenerate the current final implementation bundle before starting another mandatory review.
 6. Correct stale task docs immediately. If docs say the phase is complete or reviews passed but a later review timed out/failed or a post-review fix landed, uncheck completion/review rows and state the active blocker.
-7. For the next review attempt, use bounded micro-shards rather than re-sending the timeout-prone broad bundle. Require parseable fail-closed JSON for every micro-shard; any timeout/failure keeps the lane blocked.
+7. For the next review attempt, use a narrower self-contained bundle rather than re-sending the stall-prone broad bundle. Preserve the full bundle identity and explain the narrowed scope. Require one parseable fail-closed verdict from the pinned interactive lane; any stall/failure keeps the lane blocked. Do not combine partial shard passes into approval for a whole bundle that no single current review covered.
 
 ## Review artifact hygiene
 

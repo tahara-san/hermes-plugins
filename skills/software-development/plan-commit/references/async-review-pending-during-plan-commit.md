@@ -37,7 +37,7 @@ Use a JSON marker like:
 ```json
 {
   "status": "pending",
-  "reviewer": "Codex-style Hermes delegate_task",
+  "reviewer": "Hermes async artifact-consistency reviewer",
   "delegation_id": "deleg_xxx",
   "subagent_session_id": "20260623_121719_b445b3",
   "bundle_path": "tasks/<slug>/reviews/pre-commit-artifact-consistency-bundle.md",

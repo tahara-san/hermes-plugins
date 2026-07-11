@@ -23,22 +23,23 @@ The Claude planner plugin's `/plan-issues` flow does the following:
    - suggested fixes
    - pre-resolved decisions
    - manual-handling notes
-8. Remove source issue files only after successful plan-doc creation and only when that cleanup is part of the requested flow.
+8. Preserve source issue files after plan-doc creation; `plan-issues` is docs-only and does not delete them.
 9. Emit a kickoff prompt for `/plan-code`.
 
 ## Hermes adaptation
 
 If operating in Hermes rather than Claude Code:
 
-- Save the plan under `.hermes/plans/` unless the user requests project `tasks/<task-name>/` docs.
-- You may use the Hermes `writing-plans` / `plan` skills instead of invoking Claude Code.
+- Build a dependency graph first, assign zero-padded implementation waves beginning at `01`, and save each plan under `tasks/<implementation-order>-<task-name>/`; tasks safe to implement in parallel may share the same number.
+- Load and invoke the `plan-doc` workflow for every included task rather than hand-writing a weaker substitute.
 - Keep the conceptual gates from the Claude workflow:
   - plan first
   - simplification pass before review
-  - Codex-style or independent review after simplification
+  - one finalized immutable review bundle per task
+  - bare interactive Codex in managed tmux with GPT-5.6 SOL @ xhigh and Claude Code through `claude-i`, launched before waiting on either
   - revise and re-review until clean
   - targeted tests/build in the plan
-- If a local reviewer binary is unavailable, do not encode that as a durable limitation. Use another independent-review mechanism for the session and note only the successful review pattern.
+- If a required reviewer binary, authentication, pinned model/effort attestation, or parseable verdict is unavailable, fail closed unless the user explicitly waives the lane. Never substitute `delegate_task`, `codex exec`, or `codex review` for the interactive Codex lane.
 
 ## Practical checklist
 
@@ -49,5 +50,5 @@ If operating in Hermes rather than Claude Code:
 - [ ] Include exact files expected to change.
 - [ ] Include regression tests that assert machine-readable behavior, not only status codes.
 - [ ] Include project-specific build/test commands.
-- [ ] Include simplification -> Codex/independent review ordering.
-- [ ] Do not remove source issue files unless explicitly authorized.
+- [ ] Include simplification followed by same-bundle parallel launch of interactive Codex and Claude Code reviews.
+- [ ] Preserve source issue files.

@@ -13,7 +13,7 @@ Use this when an interactive `claude-i` plan-doc review reads the prepared bundl
 7. In plan-doc workflows, write a blocked/pending review artifact naming:
    - the bundle path
    - the model/banner observed
-   - any pending delegate/Codex-style review id
+   - any pending interactive Codex tmux session and raw-pane artifact
    - the incomplete Claude artifact path
    - exact resume steps
 

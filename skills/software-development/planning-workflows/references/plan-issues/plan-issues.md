@@ -1,7 +1,7 @@
 ---
 name: plan-issues
 description: Use when the user wants Hermes to convert logged out-of-scope issue files into task plan directories (Claude Code /plan-issues style). Scans tasks/out-of-scope-issues layouts, filters by priority, groups and deduplicates issues, resolves decisions up front, explicitly invokes the `plan-doc` workflow, and reports skipped/manual issues.
-version: 1.0.1
+version: 1.0.3
 author: Hermes Agent (migrated from Claude Code planner plugin)
 license: MIT
 metadata:
@@ -12,7 +12,9 @@ metadata:
 
 # plan-issues
 
-Convert out-of-scope issue logs into actionable `tasks/<task-name>/` plan documents via the `plan-doc` workflow. This is document creation only; do not implement fixes.
+## Purpose
+
+Convert out-of-scope issue logs into actionable `tasks/<implementation-order>-<task-name>/` plan documents via the `plan-doc` workflow. This is document creation only; do not implement fixes.
 
 ## Supported Source Layouts
 
@@ -81,7 +83,13 @@ Each group becomes one `plan-doc` task.
 
 ### Step 5: Generate Task Names
 
-Derive max 4-5 word kebab-case names. Strip leading `YYYYMMDD_` from source filenames.
+Derive max 4-5 word kebab-case names. Strip leading `YYYYMMDD_` from source filenames. Build the group dependency graph before creating directories, then prefix every generated name with its zero-padded implementation wave:
+
+```text
+tasks/<implementation-order>-<task-name>/
+```
+
+Start at `01`. Give independent groups the same number when parallel implementation is safe (for example `01-api-contract` and `01-ui-copy-cleanup`). Increment the number when a task depends on an earlier wave (for example `02-client-integration`). The prefix records implementation order, not discovery order, severity, or review completion order.
 
 ### Step 6: Up-Front Decision and Manual-Handling Gate
 
@@ -102,7 +110,7 @@ For each group, run the `plan-doc` workflow using a composed task description co
 - `## Manual-Handling Notes` block if relevant
 - hard rules: no migration/backward-compatibility code unless explicitly requested; prefer direct elegant fixes
 
-In Hermes, this means **load the `plan-doc` skill** and use its behavior directly in this session. Create the corresponding `tasks/<task-name>/` files through that workflow rather than hand-writing a weaker substitute. Every generated plan must run the **Hermes delegated review** as a fresh `delegate_task` reviewer using GPT 5.6 Sol @ xhigh effort. Never invoke, install, probe, or authenticate a local Codex executable; Claude Code is the separate CLI-based review lane through `claude-i`.
+In Hermes, this means **load the `plan-doc` skill** and use its behavior directly in this session. Create the corresponding `tasks/<implementation-order>-<task-name>/` files through that workflow rather than hand-writing a weaker substitute. Every generated plan must run the external **Codex interactive TUI review** using bare `codex` in a managed `tmux` session with the GPT-5.6 SOL @ xhigh contract in `../codex-cli-review-lane.md`. Never use noninteractive `codex exec` or `codex review`: they cause severe timeout issues. Never use a Hermes `delegate_task` reviewer as this lane or its fallback; Claude Code is the separate interactive CLI review lane through `claude-i`. Finalize all independent generated-task bundles, then launch every required independent review lane before waiting for, polling, monitoring, adjudicating, or fixing findings from any one lane. Do not run Codex to completion and only then launch Claude Code, or vice versa; the implementation-order prefix does not impose review order.
 
 ### Step 8: Source Issue Cleanup Policy
 
@@ -127,9 +135,10 @@ Report:
 5. Cross-priority duplicate kebabs.
 6. Manual-tier issues skipped.
 7. Groups created and source files mapped into each.
-8. Decisions captured and manual-handling notes.
-9. Paths to new task directories.
-10. Source issue files/sections removed, or state that none were removed.
+8. Implementation waves, including which task directories share an order because parallel implementation is safe and which dependency caused each increment.
+9. Decisions captured and manual-handling notes.
+10. Paths to new task directories.
+11. Source issue files/sections removed, or state that none were removed.
 
 ### Step 10: Emit Kickoff Prompt
 
@@ -149,5 +158,6 @@ If tasks were created, emit:
 - Deleting issue source files just because plans were created.
 - Applying a priority filter for planning but deleting unfiltered files.
 - Grouping unrelated low-severity issues into one broad, vague task.
+- Creating unprefixed task directories or assigning unique order numbers to tasks that are safe to implement in parallel.
 - Re-asking decisions already resolved in the plan-issues gate when invoking plan-doc.
 - Planning or refreshing Dependabot/security advisory count issue files; Dependabot alerts are already tracked in GitHub unless the user explicitly asks for triage/fix work.

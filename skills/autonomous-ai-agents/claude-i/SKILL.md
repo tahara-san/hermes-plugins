@@ -1,7 +1,7 @@
 ---
 name: claude-i
 description: "Use Claude Code through subscription-friendly interactive tmux sessions; avoid `claude -p` print mode by default."
-version: 1.0.0
+version: 1.0.1
 author: Hermes Agent + local user preference
 license: MIT
 platforms: [linux, macos, windows]
@@ -46,6 +46,8 @@ Raw user-chat tokens can influence skill selection, so do not create broad local
 ## Core Rule
 
 Do **not** use `claude -p` or `claude --print` unless the user explicitly asks for print mode or API-billed usage.
+
+When Claude Code is one lane in a required multi-lane review, start its dedicated tmux session, verify the requested model/effort, and submit the immutable-bundle prompt before waiting for or monitoring any companion reviewer. Launch every required independent review lane before waiting for, polling, monitoring, adjudicating, or fixing findings from any one lane; do not run Claude Code to completion and only then launch Codex.
 
 Default to one of these inside a managed `tmux` session:
 
@@ -266,7 +268,7 @@ Paste a prompt that tells Claude to prefer the prepared bundle and only request 
 
 When reviewing planning artifacts rather than implementation code, build a saved bundle that includes untracked task docs and package-script context; do not rely on `git diff` alone. Keep Claude read-only, approve only the prepared bundle read scope, and if you patch docs after Claude's first review, regenerate the bundle and rerun review before claiming approval. Save the final verdict under `tasks/<slug>/reviews/`. See `references/plan-doc-read-only-review.md` for the exact pattern.
 
-If an interactive plan-doc review spends too long reading a large prepared bundle and never reaches a verdict, bound the review instead of waiting indefinitely: ask Claude to stop further exploration and return the requested verdict from the context already reviewed; if that prompt is queued behind a tool call, interrupt with `Ctrl-C` and send a no-tools verdict request. Save the raw pane including the interruption/recovery. If Claude still does not return an explicit verdict, save the artifact as `INCOMPLETE`/blocked rather than counting the launch as approval. See `references/plan-doc-review-stall-recovery.md` for the concise blocked-artifact pattern, including how to record the bundle path, observed model/banner, pending delegate id, incomplete pane artifact, and resume steps.
+If an interactive plan-doc review spends too long reading a large prepared bundle and never reaches a verdict, bound the review instead of waiting indefinitely: ask Claude to stop further exploration and return the requested verdict from the context already reviewed; if that prompt is queued behind a tool call, interrupt with `Ctrl-C` and send a no-tools verdict request. Save the raw pane including the interruption/recovery. If Claude still does not return an explicit verdict, save the artifact as `INCOMPLETE`/blocked rather than counting the launch as approval. See `references/plan-doc-review-stall-recovery.md` for the concise blocked-artifact pattern, including how to record the bundle path, observed model/banner, pending interactive Codex tmux session, incomplete pane artifact, and resume steps.
 
 ### Implementation-diff review bundles with untracked files
 

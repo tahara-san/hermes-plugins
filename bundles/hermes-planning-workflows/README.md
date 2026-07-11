@@ -1,6 +1,6 @@
 # hermes-planning-workflows bundle
 
-A curated set of Hermes skills and hooks for contract-first planning and execution.
+A curated set of Hermes skills and hooks for contract-first planning and execution, including ordered `plan-issues` task waves and parallel independent review lanes.
 
 ## Included
 
@@ -20,4 +20,4 @@ A curated set of Hermes skills and hooks for contract-first planning and executi
 - `github-operations`
 - `subagent-driven-development`
 - `test-driven-development`
-- Claude Code CLI and `tmux` for `claude-i`
+- Codex CLI, Claude Code CLI, and `tmux` for the interactive review lanes
