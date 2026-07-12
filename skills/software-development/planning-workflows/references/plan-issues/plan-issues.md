@@ -97,7 +97,7 @@ Before creating any task directory, run initialization from the project root (re
 python3 <skill-dir>/scripts/plan_issues_workflow.py init \
   --tasks-root tasks \
   --definitions /absolute/path/to/definitions.json \
-  --max-rounds 2
+  --max-rounds 4
 ```
 
 Initialization fails before directory creation on invalid kebab names, duplicates, unknown prerequisites, a dependency cycle, or target collisions. Successful output creates:
@@ -220,8 +220,8 @@ python3 <skill-dir>/scripts/plan_issues_workflow.py aggregate \
 - Consolidate all blocker findings into one amendment pass.
 - Regenerate and rerun both lanes only after blocker-level or contradiction fixes. The reround bundle is current-only: include the latest authoritative evidence plus a concise changed/removed-evidence and consolidated finding-to-fix delta. Keep prior full bundles and prior raw review artifacts as historical paths/digests; do not embed them in the reround.
 - Preserve optional/non-blocking suggestions in the aggregate and handoff; they do not invalidate a matching approval or force plan churn.
-- The default cap is two total review rounds: the initial round plus at most one normal blocker-driven amendment/reround. Regeneration fails unless the authoritative docs actually changed after the consolidated blocker result.
-- At the configured failed-round cap, bundle generation stops for a user-visible checkpoint. Report root causes and options instead of autonomously continuing.
+- The default cap is four total review rounds: the initial round plus at most three normal blocker-driven amendment/rerounds. Regeneration fails unless the authoritative docs actually changed after the consolidated blocker result.
+- If the fourth round does not pass, stop at a user-visible checkpoint and ask the user to decide how to proceed. Do not autonomously start another review round without an explicit user decision; report the consolidated root causes and options.
 
 When both lanes approve the matching digest and live authoritative docs still match, the helper writes `reviews/final-review.json`, closes that task, and advances the ledger. A historical `final-review.json` never proves current approval by existence alone. Before trusting a saved ledger in a later session, run `python3 <skill-dir>/scripts/plan_issues_workflow.py status --tasks-root tasks`; it revalidates the complete bundle → two strict raw attestations/results → aggregate → `final-review.json` → live-doc chain and marks any missing, changed, mismatched, or unsafe approval stale. This mechanical chain gate means there is no separate artifact-consistency review and no third reviewer pass.
 
@@ -281,7 +281,7 @@ For a pre-helper conversion with existing stable task directories, first review 
 python3 <skill-dir>/scripts/plan_issues_workflow.py adopt-legacy \
   --tasks-root tasks \
   --definitions /absolute/path/to/definitions.json \
-  --max-rounds 2
+  --max-rounds 4
 ```
 
 Adoption refuses missing, symlinked, or ambiguous legacy directories. It preserves existing `reviews/` trees as immutable history, records their exact paths in task state, creates metadata/handoffs/ledger state, and starts with one current task without treating legacy review artifacts as current approval. Stable names mean adoption performs no directory renaming.

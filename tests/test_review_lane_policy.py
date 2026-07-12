@@ -224,7 +224,7 @@ def test_nested_out_of_scope_planning_reference_matches_plan_issues_contract():
     assert "launched before waiting on either" in content
 
 
-def test_plan_issues_rerounds_use_current_only_bundles_without_extra_review_passes():
+def test_plan_issues_rerounds_are_current_only_and_cap_at_four_rounds():
     paths = [
         SKILLS / "plan-issues" / "SKILL.md",
         SKILLS / "planning-workflows" / "references" / "plan-issues" / "plan-issues.md",
@@ -238,6 +238,22 @@ def test_plan_issues_rerounds_use_current_only_bundles_without_extra_review_pass
         assert "current-only" in content, path
         assert "prior raw review artifacts" in content, path
         assert "no separate artifact-consistency review" in content, path
+        assert "four total review rounds" in content, path
+        assert "ask the user to decide" in content, path
+
+    cap_references = [
+        SKILLS / "planning-workflows" / "SKILL.md",
+        SKILLS
+        / "planning-workflows"
+        / "references"
+        / "writing-plans"
+        / "references"
+        / "out-of-scope-issue-planning.md",
+    ]
+    for path in cap_references:
+        content = path.read_text().lower()
+        assert "four total review rounds" in content, path
+        assert "ask the user to decide" in content, path
 
 
 def test_recovery_references_do_not_reinstate_delegated_codex_lane():

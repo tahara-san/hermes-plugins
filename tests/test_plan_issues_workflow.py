@@ -376,14 +376,17 @@ def test_delayed_old_bundle_review_is_archived_and_cannot_change_current_state(
     assert module.aggregate_reviews(tasks_root, "alpha")["state"] == "approved"
 
 
-def test_reround_cap_stops_unbounded_review_churn(tmp_path: Path):
+def test_reround_cap_stops_after_fourth_failed_review_and_requires_user_decision(
+    tmp_path: Path,
+):
     module = load_module()
     tasks_root = tmp_path / "tasks"
-    module.initialize_conversion(tasks_root, definitions(("alpha", ())), max_rounds=2)
+    status = module.initialize_conversion(tasks_root, definitions(("alpha", ())))
+    assert status["max_rounds"] == 4
     seed_task_docs(tasks_root, "alpha")
     manifest = explicit_manifest(tasks_root / "alpha", "spec.md", "todo.md")
 
-    for expected_version in (1, 2):
+    for expected_version in (1, 2, 3, 4):
         bundle = module.build_review_bundle(tasks_root, "alpha", manifest)
         assert bundle.version == expected_version
         for lane in ("codex", "claude"):
@@ -396,13 +399,18 @@ def test_reround_cap_stops_unbounded_review_churn(tmp_path: Path):
                 verdict="CHANGES_REQUIRED",
                 blockers=[f"round {expected_version} blocker"],
             )
-        module.aggregate_reviews(tasks_root, "alpha")
-        if expected_version == 1:
+        assert module.aggregate_reviews(tasks_root, "alpha")["state"] == "changes_required"
+        if expected_version < 4:
             (tasks_root / "alpha" / "spec.md").write_text(
-                "# alpha\n\nRound-one blockers fixed.\n"
+                f"# alpha\n\nRound-{expected_version} blockers fixed.\n"
             )
 
-    with pytest.raises(module.WorkflowError, match="review round cap.*user checkpoint"):
+    status = json.loads((tasks_root / "plan-issues-status.json").read_text())
+    entry = status["tasks"]["alpha"]
+    assert entry["failed_rounds"] == 3
+    assert "ask the user to decide" in entry["next_action"]
+
+    with pytest.raises(module.WorkflowError, match="review round cap.*user decision"):
         module.build_review_bundle(tasks_root, "alpha", manifest)
 
 

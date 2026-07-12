@@ -38,7 +38,7 @@ If operating in Hermes rather than Claude Code:
   - simplification pass before review
   - exactly one target slug and one bounded explicit evidence manifest
   - bare interactive Codex in managed tmux with GPT-5.6 SOL @ xhigh and Claude Code through `claude-i`, launched before waiting on either lane for the current task
-  - save both complete matching-digest results, amend authoritative docs for consolidated blocker findings at most once in the normal flow, and default to two total rounds
+  - save both complete matching-digest results, amend authoritative docs for consolidated blocker findings at most three times in the normal flow, and default to four total review rounds; if the fourth round does not pass, stop and ask the user to decide how to proceed
   - do not generate or dispatch the next task until the current task closes or the user authorizes moving past a durable block
   - bind approved prerequisites through compact size-bounded contracts included in the dependent manifest; represent an authorized durable block as an explicit gate
   - update ordering metadata transactionally without directory renaming, and adopt existing stable legacy directories only through an explicit reviewed mapping while preserving review history

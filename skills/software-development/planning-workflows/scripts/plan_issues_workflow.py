@@ -434,7 +434,7 @@ def initialize_conversion(
     tasks_root: Path | str,
     definitions: Sequence[Mapping[str, Any]],
     *,
-    max_rounds: int = 2,
+    max_rounds: int = 4,
 ) -> dict[str, Any]:
     """Create all task shells only after the complete graph passes validation."""
 
@@ -752,7 +752,7 @@ def build_review_bundle(
     current_reviews = entry.get("reviews") or {}
     if entry.get("failed_rounds", 0) >= status["max_rounds"]:
         raise WorkflowError(
-            "review round cap reached; stop for a user checkpoint with root causes/options"
+            "review round cap reached; stop and request a user decision before any further review"
         )
     if current_bundle:
         _validate_bundle_integrity(root, slug, current_bundle)
@@ -1344,10 +1344,17 @@ def aggregate_reviews(tasks_root: Path | str, slug: str) -> dict[str, Any]:
         entry["state"] = "changes_required"
         entry["failed_rounds"] = entry.get("failed_rounds", 0) + 1
         entry["blocker"] = "; ".join(blocking) or "review changes required"
-        entry["next_action"] = (
-            "Consolidate all blocker-level findings into one amendment pass; optional "
-            "non-blocking suggestions do not invalidate the bundle."
-        )
+        if entry["failed_rounds"] >= status["max_rounds"]:
+            entry["next_action"] = (
+                f"Review round limit reached after {status['max_rounds']} failed rounds; "
+                "stop and ask the user to decide how to proceed. Do not start another "
+                "review round without an explicit user decision."
+            )
+        else:
+            entry["next_action"] = (
+                "Consolidate all blocker-level findings into one amendment pass; optional "
+                "non-blocking suggestions do not invalidate the bundle."
+            )
     else:
         entry["state"] = "approved"
         entry["blocker"] = None
@@ -1617,7 +1624,7 @@ def adopt_legacy_conversion(
     tasks_root: Path | str,
     definitions: Sequence[Mapping[str, Any]],
     *,
-    max_rounds: int = 2,
+    max_rounds: int = 4,
 ) -> dict[str, Any]:
     """Adopt stable legacy task directories without treating old reviews as current."""
 
@@ -1709,14 +1716,14 @@ def _parser() -> argparse.ArgumentParser:
     )
     init.add_argument("--tasks-root", type=Path, default=Path("tasks"))
     init.add_argument("--definitions", required=True, help="JSON file or JSON value")
-    init.add_argument("--max-rounds", type=int, default=2)
+    init.add_argument("--max-rounds", type=int, default=4)
 
     adopt = subparsers.add_parser(
         "adopt-legacy", help="transactionally adopt stable legacy task directories"
     )
     adopt.add_argument("--tasks-root", type=Path, default=Path("tasks"))
     adopt.add_argument("--definitions", required=True, help="JSON file or JSON value")
-    adopt.add_argument("--max-rounds", type=int, default=2)
+    adopt.add_argument("--max-rounds", type=int, default=4)
 
     bundle = subparsers.add_parser("bundle", help="generate one current task bundle")
     bundle.add_argument("--tasks-root", type=Path, default=Path("tasks"))
