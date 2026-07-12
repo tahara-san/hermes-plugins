@@ -55,10 +55,7 @@ MIGRATED_CODEX_RECOVERY_REFERENCES = [
     / "planning-workflows"
     / "references"
     / "plan-doc-review-hardening-and-pending-codex.md",
-    SKILLS
-    / "planning-workflows"
-    / "references"
-    / "scoped-plan-code-review-gates.md",
+    SKILLS / "planning-workflows" / "references" / "scoped-plan-code-review-gates.md",
 ]
 
 NONINTERACTIVE_CODEX_COMMAND = re.compile(
@@ -102,10 +99,7 @@ def test_core_review_contract_requires_interactive_codex():
 
 def test_codex_interactive_lane_forbids_timeout_prone_noninteractive_commands():
     content = (
-        SKILLS
-        / "planning-workflows"
-        / "references"
-        / "codex-cli-review-lane.md"
+        SKILLS / "planning-workflows" / "references" / "codex-cli-review-lane.md"
     ).read_text()
 
     assert "severe timeout issues" in content
@@ -168,7 +162,7 @@ def test_required_multi_lane_reviews_launch_before_waiting():
         assert contract in path.read_text().lower(), path
 
 
-def test_plan_issues_requires_ordered_task_directory_names():
+def test_plan_issues_requires_stable_task_directory_names_and_graph_metadata():
     paths = [
         SKILLS / "plan-issues" / "SKILL.md",
         SKILLS / "planning-workflows" / "SKILL.md",
@@ -179,14 +173,18 @@ def test_plan_issues_requires_ordered_task_directory_names():
         / "plan-issues-priority-grouped-conversion.md",
     ]
     for path in paths:
-        content = path.read_text()
-        assert "<implementation-order>-<task-name>" in content, path
-        assert "zero-padded" in content, path
-        assert "same number" in content or "share a number" in content, path
+        content = path.read_text().lower()
+        assert "tasks/<task-name>/" in content, path
+        assert "stable" in content, path
+        assert "directory renaming" in content, path
+        assert "dependency graph" in content, path
+        assert "cycle" in content, path
+        assert "parallel" in content and "share" in content, path
 
 
-def test_plan_issues_does_not_serialize_independent_task_reviews():
+def test_plan_issues_reviews_one_current_task_with_parallel_lanes():
     paths = [
+        SKILLS / "plan-issues" / "SKILL.md",
         SKILLS / "planning-workflows" / "SKILL.md",
         SKILLS / "planning-workflows" / "references" / "plan-issues" / "plan-issues.md",
         SKILLS
@@ -194,16 +192,19 @@ def test_plan_issues_does_not_serialize_independent_task_reviews():
         / "references"
         / "plan-issues-priority-grouped-conversion.md",
     ]
-    forbidden = (
-        "review them one by one",
-        "do not move to the next generated task",
-        "run review waves by implementation-order prefix",
-        "wait for the wave",
+    forbidden_global_campaigns = (
+        "before waiting on any generated-task review lane",
+        "launch all generated-task reviewers",
+        "generate all by default",
     )
     for path in paths:
         content = path.read_text().lower()
-        assert "implementation-order prefix does not impose review order" in content, path
-        assert not any(phrase in content for phrase in forbidden), path
+        assert "current task" in content, path
+        assert "do not generate or dispatch the next task" in content, path
+        assert (
+            "launch every required independent review lane before waiting" in content
+        ), path
+        assert not any(phrase in content for phrase in forbidden_global_campaigns), path
 
 
 def test_nested_out_of_scope_planning_reference_matches_plan_issues_contract():
@@ -216,10 +217,27 @@ def test_nested_out_of_scope_planning_reference_matches_plan_issues_contract():
         / "out-of-scope-issue-planning.md"
     )
     content = path.read_text().lower()
-    assert "<implementation-order>-<task-name>" in content
+    assert "tasks/<task-name>/" in content
+    assert "stable" in content
     assert "does not delete" in content
     assert "managed tmux" in content
     assert "launched before waiting on either" in content
+
+
+def test_plan_issues_rerounds_use_current_only_bundles_without_extra_review_passes():
+    paths = [
+        SKILLS / "plan-issues" / "SKILL.md",
+        SKILLS / "planning-workflows" / "references" / "plan-issues" / "plan-issues.md",
+        SKILLS
+        / "planning-workflows"
+        / "references"
+        / "plan-issues-priority-grouped-conversion.md",
+    ]
+    for path in paths:
+        content = path.read_text().lower()
+        assert "current-only" in content, path
+        assert "prior raw review artifacts" in content, path
+        assert "no separate artifact-consistency review" in content, path
 
 
 def test_recovery_references_do_not_reinstate_delegated_codex_lane():

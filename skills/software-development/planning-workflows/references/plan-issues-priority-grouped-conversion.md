@@ -1,50 +1,68 @@
-# Plan-issues priority grouped conversion
+# Plan-issues priority-grouped conversion
 
-Use when the user invokes `/skill plan-issues <priority>` or asks to convert `tasks/out-of-scope-issues/<priority>/` into implementation task docs.
+Use this conditional reference when the user invokes `/skill plan-issues <priority>` or asks to convert one or more `tasks/out-of-scope-issues/<priority>/` buckets.
 
-## Session-derived pattern
+The canonical contract is `plan-issues/plan-issues.md`; this file only narrows priority-grouped discovery and grouping. It cannot relax the one-task review lifecycle, dependency graph checks, reviewer pins, evidence bounds, or out-of-scope guard.
 
-1. Treat the request as a docs-only issue-conversion workflow. Do **not** implement fixes during conversion.
-2. Load `planning-workflows`, then read all matching issue files for the requested priority, including nested `manual/` entries.
-3. Ask one early scope/decision question when the grouping could reasonably vary. Good choices include:
-   - all issues grouped into multiple task dirs;
-   - only frontend-owned product/code issues;
-   - only E2E/test-infra issues;
-   - only backend/cross-repo contract issues.
-4. Check existing `tasks/` dirs and `git status --short` before writing so new plans do not duplicate in-flight work or absorb unrelated dirty state.
-5. Group issues by class and ownership, not one task per issue. Build a dependency graph across groups and name every generated directory `tasks/<implementation-order>-<task-name>/` with a zero-padded order starting at `01`. Give independent groups the same number when parallel implementation is safe; increment only for a dependent implementation wave. Prefer class-level task names such as:
-   - E2E/test-infra stabilization;
-   - signout/session state hardening;
-   - backend public contract;
-   - backend retry/infrastructure bug;
-   - model/schema contract;
-   - UI/auth/cache policy;
-   - runtime config contract;
-   - editor/accessibility reliability.
-6. For backend-owned issues discovered from a frontend repo, read backend source only enough to ground the plan. If the backend checkout is dirty with unrelated work, record that and keep new docs in the origin workspace unless the user explicitly directs backend-repo plan creation.
-7. Each generated task dir should include `spec.md` and `todo.md` with:
-   - source issue links;
-   - goal/current evidence;
-   - scope and out-of-scope;
-   - explicit no-migration / no-backward-compatibility constraints when requested;
-   - acceptance criteria;
-   - decisions/open gates that must stop implementation if unclear;
-   - implementation phases;
-   - verification commands;
-   - kickoff prompt and review-gate expectations.
-8. Preserve original out-of-scope issue files during conversion. Do not remove or edit them unless the user explicitly asks for cleanup after the mapping is clear.
-9. After writing, verify coverage mechanically: every source issue maps to exactly one generated plan, with no missing or multi-mapped issue unless deliberately documented. When deleting converted issue files in the same session, create or update a compact coverage-map artifact (for example `tasks/<priority>-priority-issue-conversion-coverage.md`) before removal so the provenance remains durable after the originals are gone.
-10. Because `plan-issues` invokes task-doc creation, run the explicit `plan-doc` review gate on the generated plans unless the user explicitly waives it. Do not treat embedded future review-gate wording in `spec.md` as satisfying this requirement. Build one self-contained immutable plan-doc bundle per generated task, run both required review legs (external **Codex interactive TUI** GPT-5.6 SOL @ xhigh in managed `tmux` per `codex-cli-review-lane.md` + Claude Code default Opus 4.8 via the CLI-based `claude-i` workflow), save raw artifacts and an aggregate verdict under each generated task's `reviews/`, and rerun both legs if reviewer feedback changes docs. Do not use noninteractive `codex exec` or `codex review`, which cause severe timeout issues.
-11. Finalize every generated task's immutable bundle first, then launch every required independent review lane before waiting for, polling, monitoring, adjudicating, or fixing findings from any one lane. When task bundles and artifact paths are independent, launch Codex and Claude for all generated tasks before waiting on any reviewer, then aggregate per task. The implementation-order prefix does not impose review order; serialize only when a task bundle genuinely depends on unresolved findings from an earlier task review, and record that dependency. If any interactive Codex TUI has not produced a passing parseable verdict, save a pending/blocker artifact naming its task, tmux session, raw pane capture, and bundle path, and report the conversion as pending rather than complete.
-12. Run a lightweight docs sanity check such as `git diff --check -- <new task dirs>` and report untracked task dirs separately. This sanity check is not a substitute for the required plan-doc review gate.
-13. If the user then asks to remove processed issue files, delete only the exact source issue files that were mapped into generated plans in this session. Before deletion, confirm the candidate list against the coverage map and current status; after deletion, verify the issue directory/search result and scoped git status. Do not remove unmapped, manual, or newly discovered issue files by priority glob alone.
-14. If an out-of-scope issue file is partially stale against current source, do not preserve stale claims as task truth. Record the source issue as converted, but write the generated task around current evidence: state which claim is stale/resolved, keep any still-active sub-issue, and make implementation start with a contract/evidence gate rather than a forced code change.
+## Priority-grouped procedure
+
+1. Treat the request as docs-only conversion. Do not implement fixes.
+2. Load `planning-workflows`, the canonical `plan-issues` reference, and `plan-doc`.
+3. Read every matching issue file, including nested `manual/` entries. Valid priorities are `critical`, `high`, `medium`, `low`, `proposal`, and `other`.
+4. Apply the user's filter exactly. Deduplicate normalized kebabs before grouping. Skip Dependabot-only alert/security-count records; GitHub remains their source of truth.
+5. Before writing, inspect existing tasks and dirty state so the conversion neither duplicates in-flight work nor absorbs unrelated files.
+6. Group by class, ownership, surface, and implementation boundary. Keep medium-or-higher, architectural, multi-subsystem, and non-trivial items separate by default. Ask one early decision when materially different groupings are reasonable.
+7. Build the complete dependency graph and detect every cycle before directories are created. Use stable `tasks/<task-name>/` paths. Derive longest-prerequisite-path `implementation_order` waves and safe parallel cohorts in metadata/status only. Independent safe-parallel tasks may share a wave; graph correction requires no directory renaming.
+8. Initialize the conversion through `planning-workflows/scripts/plan_issues_workflow.py`. This creates task metadata, the compact status ledger, and a fresh-session handoff per task. The ledger identifies exactly one current task and records direct prerequisites plus parallel cohort.
+9. Invoke `plan-doc` per group to create `spec.md` and `todo.md`. Include exact source links, current evidence, goal/scope, acceptance criteria, decisions, phases, verification, dependency gates, out-of-scope rules, kickoff, and final report.
+10. Preserve original issue files unless exact cleanup was explicitly requested. Maintain a coverage map proving each source maps to at most one generated plan; explain examined-but-unconverted sources.
+
+## One-task review lifecycle
+
+Creating/mapping all task docs does not authorize a global review campaign.
+
+1. Select the current task from `tasks/plan-issues-status.md`.
+2. Put exact repository-relative paths claimed by `spec.md`/`todo.md` in inline code, then enumerate all of them in the reasoned manifest with the real non-symlinked authoritative docs. Fail before dispatch for missing or omitted plan-named paths, directories, current-task review artifacts, duplicate paths, or a full neighboring plan.
+3. Generate a bundle for exactly one target slug. There is no generate-all default; versions are discovered only from that task's `reviews/` directory.
+4. Within the current task, launch every required independent review lane before waiting: Codex interactive TUI GPT-5.6 SOL/xhigh in managed `tmux`, and interactive Claude Code Opus 4.8/xhigh through `claude-i`, both against the same digest.
+5. Save both complete hash-bound results before editing when practical. Each task-local raw transcript must contain exactly one canonical result block attesting reviewer mode/model/effort/digest/verdict. The helper rehashes the bundle and raw artifacts before aggregation. Consolidate blocker findings into one amendment pass; the default permits the initial round plus at most one normal reround, and only after authoritative docs actually change. A reround is current-only: include latest authoritative evidence plus a concise finding-to-fix delta and historical paths/digests, while prior full bundles and prior raw review artifacts remain unbundled history. There is no separate artifact-consistency review; the helper validates the full approval chain in the same gate. Non-blocking suggestions remain implementation-review attention points and do not force document churn.
+6. Aggregate the matching digest. Archive a delayed old-digest result once as superseded; it cannot change current state or trigger a rerun by itself.
+7. Stop at the configured review-round cap for a user-visible checkpoint.
+8. Do not generate or dispatch the next task until the current task is approved, explicitly waived, or durably blocked and the user authorizes moving on.
+
+Implementation-order metadata controls later implementation dependencies, not task paths or review rounds. Stable task paths do not change when graph metadata changes. Even tasks in one parallel implementation cohort are reviewed one task at a time so each has an independent manifest, version sequence, reviewer state, and aggregate.
+
+## Dependency and correction discipline
+
+- Do not embed another task's mutable `spec.md` or `todo.md`.
+- Freeze compact size-bounded required excerpts only after the prerequisite has a current approved bundle/immutable aggregate identity, record a material excerpt digest, and include that contract explicitly in the dependent manifest. Unrelated prerequisite prose does not mutate the frozen contract; changing its excerpts stales the dependent approval.
+- Keep a user-authorized durable block as an explicit downstream gate; any other unapproved prerequisite stops bundling.
+- If dependency discovery changes order or cohort metadata, run the helper's metadata-only migration. It updates metadata, status, and handoffs atomically, performs no directory renaming or path-reference rewrite, and invalidates affected active/approved review identity while preserving historical artifacts.
+- Adopt existing stable legacy task directories only through `adopt-legacy` with a reviewed explicit definitions mapping; preserve each existing `reviews/` tree as historical evidence.
+
+## Out-of-scope guard
+
+During conversion, deduplicate and log every non-exempt new finding at `tasks/out-of-scope-issues/<priority>/<YYYYMMDD>_<short-kebab>.md`, or the priority's `manual/` subdirectory for human intervention. Use **Issue**, **Location**, **Severity**, **Context**, and **Suggested Fix** in order. Do not create/update an issue solely for Dependabot alerts or advisory counts. Mention every created/updated issue in the wrap-up.
+
+## Final report additions
+
+Alongside the canonical final report, include:
+
+- per-priority counts and filter result;
+- manual/skipped/already-covered inputs;
+- group-to-source coverage;
+- graph waves, prerequisites, parallel cohorts, and cycle-check result;
+- the status ledger and each handoff path;
+- the current task and why later tasks were not dispatched;
+- each generated task's local bundle/hash and both lane states;
+- exact cleanup, or that no source was removed.
 
 ## Pitfalls
 
-- Do not push through ambiguous product/ownership decisions. The user specifically values active clarification for plan-issues conversions.
-- For rapid-request, race-condition, or write-conflict issues discovered from E2E/full-suite runs, do not frame retry logic as the default fix. Encode a decision gate: first classify whether tests/callers are clobbering shared state with rapid API calls; prefer test serialization/isolation or caller cleanup when that is the cause. If any plan would add retry logic, require explicit user clarification and a narrow idempotent boundary.
-- Do not create migration or backward-compatibility steps when the user asks for current-contract/no-compat plans.
-- Avoid over-reading unrelated repos. For cross-repo issues, enough source evidence to plan is useful; modifying or deeply auditing a dirty secondary repo is not.
-- Do not claim plan-doc review completion unless the explicit plan-doc review stack actually ran. For issue conversion, embedding review gates in the generated task docs is not the same as running them.
-- When a source issue is examined during conversion but **not** mapped to a generated plan because current source shows it stale/resolved, do not treat it as "covered by these plans" during a later cleanup request. Remove only the exact issue files mapped to generated task dirs unless the user explicitly asks to remove stale/resolved examined issues too. Update the coverage map before deletion so it records which mapped source files were removed and which examined-but-unconverted files were intentionally kept.
+- Planning manual-tier files automatically.
+- Treating low priority as permission to over-group unrelated work.
+- Launching all generated-task reviewers before closing the current task.
+- Reusing a global campaign version.
+- Treating `git diff --check` or a coverage map as a substitute for plan-doc review.
+- Removing all files in a priority bucket rather than exact mapped sources.
+- Preserving stale issue claims as task truth when current evidence disproves them.

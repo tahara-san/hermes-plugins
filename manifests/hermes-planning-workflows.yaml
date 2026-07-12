@@ -1,6 +1,6 @@
 name: hermes-planning-workflows
-version: 0.1.3
-description: Contract-first planning with ordered task waves and parallel interactive review lanes for Hermes Agent.
+version: 0.2.0
+description: Contract-first planning with dependency-ordered tasks and one task-local parallel review pair at a time.
 repository: https://github.com/tahara-san/hermes-plugins
 skills:
   required:

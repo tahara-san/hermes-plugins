@@ -30,14 +30,18 @@ The Claude planner plugin's `/plan-issues` flow does the following:
 
 If operating in Hermes rather than Claude Code:
 
-- Build a dependency graph first, assign zero-padded implementation waves beginning at `01`, and save each plan under `tasks/<implementation-order>-<task-name>/`; tasks safe to implement in parallel may share the same number.
+- Build and validate the complete dependency graph first and fail on any cycle. Save each plan under a stable `tasks/<task-name>/` path; record dependency-derived implementation waves and safe parallel cohorts in metadata only so reordering requires no directory renaming.
 - Load and invoke the `plan-doc` workflow for every included task rather than hand-writing a weaker substitute.
+- Initialize the compact status ledger and handoffs with `planning-workflows/scripts/plan_issues_workflow.py`, then keep exactly one current task.
 - Keep the conceptual gates from the Claude workflow:
   - plan first
   - simplification pass before review
-  - one finalized immutable review bundle per task
-  - bare interactive Codex in managed tmux with GPT-5.6 SOL @ xhigh and Claude Code through `claude-i`, launched before waiting on either
-  - revise and re-review until clean
+  - exactly one target slug and one bounded explicit evidence manifest
+  - bare interactive Codex in managed tmux with GPT-5.6 SOL @ xhigh and Claude Code through `claude-i`, launched before waiting on either lane for the current task
+  - save both complete matching-digest results, amend authoritative docs for consolidated blocker findings at most once in the normal flow, and default to two total rounds
+  - do not generate or dispatch the next task until the current task closes or the user authorizes moving past a durable block
+  - bind approved prerequisites through compact size-bounded contracts included in the dependent manifest; represent an authorized durable block as an explicit gate
+  - update ordering metadata transactionally without directory renaming, and adopt existing stable legacy directories only through an explicit reviewed mapping while preserving review history
   - targeted tests/build in the plan
 - If a required reviewer binary, authentication, pinned model/effort attestation, or parseable verdict is unavailable, fail closed unless the user explicitly waives the lane. Never substitute `delegate_task`, `codex exec`, or `codex review` for the interactive Codex lane.
 

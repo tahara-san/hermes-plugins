@@ -1,6 +1,6 @@
 # hermes-planning-workflows bundle
 
-A curated set of Hermes skills and hooks for contract-first planning and execution, including ordered `plan-issues` task waves and parallel independent review lanes.
+A curated set of Hermes skills and hooks for contract-first planning and execution, including dependency-ordered `plan-issues` task waves and one independently reviewable task-local Codex/Claude pair at a time.
 
 ## Included
 

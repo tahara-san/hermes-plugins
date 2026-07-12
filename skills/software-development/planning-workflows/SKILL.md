@@ -1,7 +1,7 @@
 ---
 name: planning-workflows
 description: "Use when planning, documenting, executing, cleaning, or converting implementation plans and task directories across Hermes/Claude-style workflows."
-version: 1.0.5
+version: 1.1.0
 author: Hermes Agent
 license: MIT
 platforms: [linux, macos, windows]
@@ -180,9 +180,11 @@ When a `plan-code` request asks for a clean worktree from a base branch but the 
 
 ### Issue conversion
 
-For `plan-issues` style work, scan `tasks/out-of-scope-issues`, filter by priority, group and deduplicate issues, resolve decisions up front, and explicitly load/use the `plan-doc` skill workflow for each generated task. Name each new directory `tasks/<implementation-order>-<task-name>/` with a zero-padded order such as `01-`; tasks in the same safe parallel implementation wave share a number, while dependent waves increment it. Do not implement fixes during issue conversion.
+For `plan-issues` style work, scan `tasks/out-of-scope-issues`, filter by priority, group and deduplicate issues, resolve decisions up front, and explicitly load/use the `plan-doc` workflow for each generated task. Before creating directories, build the complete dependency graph and fail on cycles. Use stable `tasks/<task-name>/` paths; record longest-prerequisite-path `implementation_order` waves and safe parallel cohorts in metadata/status only. Independent safe-parallel tasks may share a wave, and graph correction requires no directory renaming. Do not implement fixes during issue conversion.
 
-Because issue conversion invokes task-doc creation, the generated task plans require the explicit `plan-doc` review gate unless the user explicitly waives it. A coverage map and `git diff --check` are useful but insufficient. Build and finalize one self-contained immutable bundle per generated task. For every task whose bundle and artifact paths are independent, launch its Codex interactive TUI GPT-5.6 SOL @ xhigh and Claude Code Opus 4.8 @ xhigh effort (`claude-i`) lanes before waiting on any generated-task review lane. The implementation-order prefix does not impose review order; it controls later implementation. Serialize a task's review only when its bundle genuinely depends on unresolved findings from an earlier task review, and record that dependency. Patch affected docs, regenerate only affected bundles, and rerun both lanes for each changed task. A started session is not approval; save a pending/blocker artifact and report the flow as incomplete if the required interactive Codex TUI session has no passing, parseable, attested verdict.
+Use `references/plan-issues/plan-issues.md` as the canonical contract and its shipped `scripts/plan_issues_workflow.py` helper for graph initialization, metadata, the compact status ledger, fresh-session handoffs, one-slug manifest-bounded bundles with required `spec.md`/`todo.md`, strictly attested hash-bound verdicts, complete approval-chain revalidation, stale-result archival, current-only delta rerounds, the default one-normal-reround cap, compact frozen dependency contracts, metadata-only order migration, and explicit legacy adoption.
+
+Because issue conversion invokes task-doc creation, every generated task requires the explicit `plan-doc` review gate unless the user explicitly waives it. Mapping or drafting all docs up front is allowed, but review **one current task at a time**. Do not generate or dispatch the next task until the current task is approved, explicitly waived, or durably blocked and the user authorizes moving on. Within that current task, build one immutable task-local bundle and launch every required independent review lane before waiting: interactive Codex TUI GPT-5.6 SOL/xhigh plus Claude Code Opus 4.8/xhigh through `claude-i`, both against the exact same digest. Require exactly one canonical result block in each preserved raw transcript. On a blocker reround, use a current-only bundle containing latest authoritative evidence plus a concise finding-to-fix delta; prior full bundles and prior raw review artifacts stay historical by path/hash and are not embedded. There is no separate artifact-consistency review: the same mechanical chain validator covers bundle, transcripts, aggregate, final artifact, and live docs. Preserve optional suggestions without churn, permit at most one normal reround by default, and stop at the configured failed-round cap for a user-visible checkpoint. A coverage map, startup pane, old `final-review.json`, or `git diff --check` is not current approval.
 
 ### Plan cleanup
 
