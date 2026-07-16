@@ -11,7 +11,7 @@ Use this when a completed `plan-code` task discovers late that the required Clau
 ## Required pattern
 
 1. Treat this as a workflow gate failure, not a harmless wording issue.
-2. Load/use `claude-i` and run the missing interactive review in tmux or the PTY fallback. Verify the Claude Code banner/status line before the substantive prompt; for Buffdemy workflows, record the default Opus 4.8/xhigh banner when shown.
+2. Load/use `claude-i` and run the missing interactive review in tmux or the PTY fallback. Verify the Claude Code banner/status line before the substantive prompt; for Buffdemy workflows, record the default Fable 5/xhigh banner when shown.
 3. Save the interactive pane/verdict as the canonical Claude review artifact. If a previous print-mode artifact exists, overwrite it or clearly supersede it so downstream docs point at one canonical artifact.
 4. Patch `spec.md`, `todo.md`, and aggregate review JSON to describe the real review path and verdict. Do not leave wording that claims interactive review if only print-mode ran.
 5. Regenerate the final implementation bundle from current file contents. Exclude historical/superseded review bundles and plan-review artifacts unless they are deliberately in scope; otherwise stale embedded checklists can make a current task look incomplete. Generate large `git diff` content with direct filesystem/subprocess capture rather than a Hermes terminal output that may be capped or summarized; if a reviewer observes a literal truncation marker in the saved bundle, regenerate the bundle without changing implementation source/tests and document the artifact-only regeneration in the aggregate verdict.

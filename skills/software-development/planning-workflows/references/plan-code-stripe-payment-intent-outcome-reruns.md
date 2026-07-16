@@ -30,4 +30,4 @@ Use when a Buffdemy backend `plan-code` phase involving Stripe PaymentIntents, p
 
 - Treat reviewer-found money-state issues as data-integrity blockers, not optional hardening.
 - Do not ask the user before fixing valid reviewer blockers unless the fix requires a product decision, destructive action, or scope change.
-- If the companion Claude Code Opus 4.8 @ xhigh effort lane is blocked by login/limits, save current-bundle blocked artifacts and leave the phase incomplete; do not let the blocked lane stop the RED/GREEN fix for a valid Codex finding.
+- If the companion Claude Code Fable 5 @ xhigh effort lane is blocked by login/limits, save current-bundle blocked artifacts and leave the phase incomplete; do not let the blocked lane stop the RED/GREEN fix for a valid Codex finding.

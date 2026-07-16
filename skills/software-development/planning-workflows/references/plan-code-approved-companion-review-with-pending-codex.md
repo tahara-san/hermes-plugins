@@ -5,7 +5,7 @@ Use when a `plan-code` implementation is otherwise complete, automated verificat
 ## Pattern
 
 1. **Do not claim completion.** A started TUI session is not approval, and a companion approval does not satisfy the missing interactive Codex leg.
-2. **Save the companion approval immediately** as raw and structured artifacts, including bundle path, observed reviewer model/tool/effort, verdict, and all non-blocking suggestions/testing gaps. For interactive Claude Code Opus 4.8 @ xhigh effort lanes, capture the pane after the verdict, write a normalized JSON/markdown verdict yourself if the reviewer used prose, and clear/exit the TUI session so queued text does not accidentally execute later.
+2. **Save the companion approval immediately** as raw and structured artifacts, including bundle path, observed reviewer model/tool/effort, verdict, and all non-blocking suggestions/testing gaps. For interactive Claude Code Fable 5 @ xhigh effort lanes, capture the pane after the verdict, write a normalized JSON/markdown verdict yourself if the reviewer used prose, and clear/exit the TUI session so queued text does not accidentally execute later.
 3. **During the companion review, keep commands bounded and read-only.** If the reviewer asks for a small inspection command against the prepared bundle/source, approve only when it is read-only and necessary for the verdict; do not let the companion reviewer rerun tests/builds or mutate files when Hermes already supplied verification evidence.
 4. **Create a pending Codex artifact** such as `tasks/<slug>/reviews/codex-implementation-review-pending.json` with:
    - tmux session and latest raw pane capture;

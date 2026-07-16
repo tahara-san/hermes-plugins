@@ -1,12 +1,12 @@
-# SUPERSEDED — Read-only Fable 5 review pattern
+# Read-only Fable 5 plan-mode review pattern
 
-This reference is retained only as historical context. For this user and Buffdemy workflows, **Fable 5 is banned**.
+For this user and Buffdemy workflows, use **Fable 5 at xhigh effort** as the default Claude Code review model, with the latest available Opus as the automatic fallback.
 
-Use the main `claude-i` workflow instead:
+Use the main `claude-i` workflow:
 
-- Launch interactive Claude Code without `--model claude-fable-5`.
-- Verify the banner/status line shows the configured default model, currently Opus 4.8.
+- Launch interactive Claude Code with `claude --model fable --fallback-model opus --effort xhigh`.
+- Verify the banner/status line shows `Fable 5` or, only when Fable is unavailable, the latest available `Opus` fallback.
 - Run read-only plan/code reviews in plan mode where appropriate.
 - Save the actual banner/model in the review artifact.
 
-Do not use this reference as an active procedure.
+Record the actual banner/model in the review artifact; if neither allowed model can run at xhigh effort, fail closed unless the user explicitly overrides the lane.

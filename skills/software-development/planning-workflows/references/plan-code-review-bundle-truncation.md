@@ -4,7 +4,7 @@ Use when generating mandatory review bundles for `/plan-code` phases, especially
 
 ## Lesson
 
-Hermes helper outputs and tool summaries can silently cap large `git diff` results. If a generated bundle contains markers such as `[OUTPUT TRUNCATED ...]`, the review is not self-contained: Claude Code Opus 4.8 @ xhigh effort or a delegate may need extra repo reads, stall on permission prompts, or approve against incomplete context.
+Hermes helper outputs and tool summaries can silently cap large `git diff` results. If a generated bundle contains markers such as `[OUTPUT TRUNCATED ...]`, the review is not self-contained: Claude Code Fable 5 @ xhigh effort or a delegate may need extra repo reads, stall on permission prompts, or approve against incomplete context.
 
 ## Bundle generation pattern
 

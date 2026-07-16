@@ -32,7 +32,7 @@ Do not dispatch a replacement review before the live pending/review-state docs a
 
 ## Stale-word scans in generated bundles
 
-When the user has explicitly replaced a reviewer/tool/model name (for example replacing a prior reviewer with Claude Code Opus 4.8 xhigh), scan not only live docs but also generated review bundles and authority artifacts for the old term. Historical diff text inside bundles can reintroduce stale wording and confuse final artifact-consistency checks. Neutralize historical quotes in generated bundles when they are not material to the reviewer verdict, while preserving raw reviewer verdict artifacts separately if needed.
+When the user has explicitly replaced a reviewer/tool/model name (for example replacing a prior reviewer with Claude Code Fable 5 xhigh), scan not only live docs but also generated review bundles and authority artifacts for the old term. Historical diff text inside bundles can reintroduce stale wording and confuse final artifact-consistency checks. Neutralize historical quotes in generated bundles when they are not material to the reviewer verdict, while preserving raw reviewer verdict artifacts separately if needed.
 
 ## Pitfalls
 

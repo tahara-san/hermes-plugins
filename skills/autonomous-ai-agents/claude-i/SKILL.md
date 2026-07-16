@@ -54,7 +54,7 @@ Default to one of these inside a managed `tmux` session:
 ```bash
 claude
 claude "initial prompt"
-claude --model opus --effort xhigh  # Buffdemy plan-code review default for this user
+claude --model fable --fallback-model opus --effort xhigh  # Fable 5 default; latest Opus fallback
 claude -c
 claude -r <session-id-or-name>
 ```
@@ -153,14 +153,14 @@ Do not kill a slow Claude Code session just because it is quiet. Capture more pa
 
 ### Effort/model confirmation for requested review gates
 
-When the user requests a specific Claude Code model/effort, verify the TUI banner/status line before sending the substantive prompt. For this user’s Buffdemy planning workflows, use Claude Code Opus 4.8 with xhigh effort for review gates unless the user explicitly selects another model for the current task/session. If the status shows the wrong effort/model:
+When the user requests a specific Claude Code model/effort, verify the TUI banner/status line before sending the substantive prompt. For this user's planning workflows, use Claude Code Fable 5 with xhigh effort for review gates unless the user explicitly selects another model for the current task/session. Launch with `claude --model fable --fallback-model opus --effort xhigh`: the aliases select the latest available Fable and, only when Fable is unavailable, the latest available Opus. A fallback is allowed, but the actual banner/model must be recorded in the review artifact. If neither Fable nor the latest Opus can run at xhigh effort, fail closed or obtain an explicit override.
 
 1. Open `/model` when changing model, or `/effort` when changing effort.
 2. Move the selector deliberately one key at a time, then capture the pane before confirming so the cursor is visible on the intended option.
 3. Prefer control-key movement (`C-n`/`C-p`) if arrow-key `Down`/`Up` appears not to move in tmux.
-4. Confirm session-only with `s` for task-specific overrides, then capture again to verify the banner/status changed (for example `Opus 4.8 with xhigh effort`).
+4. Confirm session-only with `s` for task-specific overrides, then capture again to verify the banner/status changed (normally `Fable 5 with xhigh effort`; `Opus` is allowed only as the recorded automatic fallback).
 
-Do not assume a combined key sequence such as `Down s`, `Right Enter`, or `Enter` moved the selector; it can confirm the old value. If Claude reports a different model when Opus 4.8 was requested, reopen `/model`, capture the cursor on Opus 4.8, and retry before counting the review. If Opus 4.8 or the requested xhigh-effort setting cannot be selected, fail closed or obtain explicit user approval for a substitution before counting the review leg; documentation alone is not sufficient to satisfy the gate.
+Do not assume a combined key sequence such as `Down s`, `Right Enter`, or `Enter` moved the selector; it can confirm the old value. If Claude reports a model other than Fable 5 or the latest available Opus fallback, reopen `/model`, capture the intended cursor, and retry before counting the review. If Fable 5, its latest Opus fallback, or the requested xhigh-effort setting cannot be selected, fail closed or obtain explicit user approval for a substitution before counting the review leg; documentation alone is not sufficient to satisfy the gate.
 
 ### 6. Send follow-ups
 
@@ -282,7 +282,7 @@ When driving Claude from Hermes, prefer temporary prompt files under `/tmp` for 
 
 When review bundles or verdict artifacts are intended to be committed, also use `references/committable-review-bundles.md`: normalize trailing whitespace in generated Markdown bundles, avoid staging stale/superseded review files blindly, and run `git diff --cached --check` after the final artifact state is staged. If a late source/test/doc cleanup happens after approval, run and save a narrow delta review rather than claiming the older approval still covers the final diff.
 
-For Buffdemy multi-repo plan-code reviews, use Claude Code Opus 4.8 with xhigh effort unless the user explicitly selects another model for the task/session. Verify the Claude Code banner shows `Opus 4.8` and the requested xhigh-effort setting before sending the substantive review prompt, and record the model/banner evidence in the review artifact.
+For Buffdemy multi-repo plan-code reviews, use Claude Code Fable 5 with xhigh effort and automatic latest-Opus fallback unless the user explicitly selects another model for the task/session. Verify the Claude Code banner shows `Fable 5` or the latest available `Opus` fallback with the requested xhigh-effort setting before sending the substantive review prompt, and record the model/banner evidence in the review artifact.
 
 Historical model-specific review references are superseded for this user’s planning workflows. An explicit user override wins for that task; verify the banner and save evidence rather than relying on stale skill wording.
 
@@ -327,7 +327,7 @@ tmux send-keys -t claude-impl Enter
 4. Shell quoting is still a risk before text reaches tmux. Use `tmux send-keys -l` for one-liners and `tmux load-buffer` + `paste-buffer` for multiline prompts.
 5. Interactive Claude can wait on permission dialogs. Always capture the pane before assuming it is stuck.
 6. Tmux sessions persist after Hermes commands finish. Clean them up explicitly, especially before rerunning a review after a stale or interrupted verdict.
-7. If Claude Code returns a transient provider error such as `529 Overloaded` during a mandatory review, a model-specific usage-limit prompt appears, or the TUI refuses the prompt with `Not logged in` before an explicit verdict, do not count the launch as approval. Save the pane/output as a blocked artifact with the bundle path, model banner, failure reason, and resume steps; retry the same review leg later against the same current bundle before claiming the gate is complete. If an interactive `/login` flow is needed, select the requested login method, capture the OAuth URL/code prompt, extract and present a clean unwrapped URL to the user, leave the tmux session alive waiting for the code when appropriate, and record that the review has not yet read the bundle. For Opus 4.8 @ xhigh plan-code reviews, also follow `planning-workflows` → `references/plan-code-opus-review-limit-and-rerun.md` for stale companion delegates, rerun bundles, and pending-artifact sequencing.
+7. If Claude Code returns a transient provider error such as `529 Overloaded` during a mandatory review, a model-specific usage-limit prompt appears, or the TUI refuses the prompt with `Not logged in` before an explicit verdict, do not count the launch as approval. Save the pane/output as a blocked artifact with the bundle path, model banner, failure reason, and resume steps; retry the same review leg later against the same current bundle before claiming the gate is complete. If an interactive `/login` flow is needed, select the requested login method, capture the OAuth URL/code prompt, extract and present a clean unwrapped URL to the user, leave the tmux session alive waiting for the code when appropriate, and record that the review has not yet read the bundle. For Fable 5 @ xhigh reviews and their latest-Opus fallbacks, also follow `planning-workflows` → `references/plan-code-opus-review-limit-and-rerun.md` for stale companion delegates, rerun bundles, and pending-artifact sequencing.
 8. A read-only review prompt is not a sandbox. Stale Claude sessions or queued follow-up prompts can still modify files later; verify the worktree after every Claude interaction and before staging.
 9. Claude Code may modify files; Hermes must verify diffs/tests independently before reporting success.
 10. Do not patch the upstream `claude-code` skill just to encode this local preference. Improve this local skill instead.

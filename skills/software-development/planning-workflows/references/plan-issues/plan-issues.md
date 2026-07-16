@@ -160,7 +160,7 @@ There is no generate-all default. `--slug` is mandatory. Version discovery scans
 For the current task only, launch every required independent review lane before waiting:
 
 - Codex interactive TUI GPT-5.6 SOL/xhigh in managed `tmux`, following `../codex-cli-review-lane.md`;
-- interactive Claude Code Opus 4.8/xhigh via `claude-i`.
+- interactive Claude Code Fable 5/xhigh via `claude-i`.
 
 Both lanes must review the exact immutable digest and return structured hash-bound verdicts. Preserve each complete raw pane/session transcript under the current task's `reviews/raw/` tree. Arbitrary transcript text may surround the result, but there must be exactly one canonical block and no duplicate, conflicting, unknown, missing, or malformed fields:
 

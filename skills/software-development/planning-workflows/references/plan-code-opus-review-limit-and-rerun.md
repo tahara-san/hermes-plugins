@@ -1,11 +1,11 @@
-# Plan-code Opus 4.8 @ xhigh effort review limit, blocker, and rerun pattern
+# Plan-code Fable 5 default / latest-Opus fallback review limit, blocker, and rerun pattern
 
-Use when a mandatory `/plan-code` review lane is explicitly overridden to Claude Code Opus 4.8 @ xhigh effort and the review hits usage limits, stalls while reading a large bundle, or returns `CHANGES_REQUIRED`.
+Use when a mandatory `/plan-code` Claude Code review lane uses its default Fable 5 @ xhigh effort or automatic latest-Opus fallback and the review hits usage limits, stalls while reading a large bundle, or returns `CHANGES_REQUIRED`.
 
 ## Pattern
 
-1. **Preflight both interactive reviewer CLIs before launch.** Confirm Claude Code can accept the prompt with the requested Opus 4.8 @ xhigh effort banner, and confirm bare `codex` can start in managed tmux with GPT-5.6 SOL @ xhigh. Finalize the immutable bundle, then launch both lanes before waiting on either. If a lane blocks and its artifact updates change the reviewed bundle, mark both reviews stale, regenerate the bundle, and rerun both lanes.
-2. **Verify the model/effort before the substantive prompt.** Prefer launching interactive Claude Code directly with `claude --model opus --effort xhigh` inside tmux, then capture the banner/status showing `Opus 4.8 with xhigh effort` before sending the review bundle prompt. If the user changes the requested model or effort mid-task, apply it to the next Claude Code review, do not rewrite historical review artifacts, and record the new banner in the new raw/structured artifacts.
+1. **Preflight both interactive reviewer CLIs before launch.** Confirm Claude Code can accept the prompt with the requested Fable 5 @ xhigh banner or its latest-Opus fallback banner, and confirm bare `codex` can start in managed tmux with GPT-5.6 SOL @ xhigh. Finalize the immutable bundle, then launch both lanes before waiting on either. If a lane blocks and its artifact updates change the reviewed bundle, mark both reviews stale, regenerate the bundle, and rerun both lanes.
+2. **Verify the model/effort before the substantive prompt.** Prefer launching interactive Claude Code directly with `claude --model fable --fallback-model opus --effort xhigh` inside tmux, then capture the banner/status showing `Fable 5 with xhigh effort` or the automatic latest-Opus fallback before sending the review bundle prompt. If the user changes the requested model or effort mid-task, apply it to the next Claude Code review, do not rewrite historical review artifacts, and record the new banner in the new raw/structured artifacts.
 3. **If Claude Code hits a usage-limit prompt before verdict, fail closed.** Save the pane as a blocked artifact and write a structured blocker artifact naming:
    - reviewed bundle path;
    - observed model/banner;

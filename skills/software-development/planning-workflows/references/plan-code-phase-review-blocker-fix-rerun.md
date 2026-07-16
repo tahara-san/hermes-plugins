@@ -32,11 +32,11 @@ Use when a mandatory plan-code review leg returns `CHANGES_REQUIRED` against a b
 
 7. **Rerun every mandatory review lane.**
    - Prior approvals are stale after source/test/task-doc edits.
-   - Launch the fresh interactive Codex TUI and Claude Code Opus 4.8 @ xhigh effort lanes before waiting on either. If one lane is blocked, the other may finish independently, but the phase remains incomplete until all mandatory lanes pass or the user explicitly waives/replaces one.
+   - Launch the fresh interactive Codex TUI and Claude Code Fable 5 @ xhigh effort lanes before waiting on either. If one lane is blocked, the other may finish independently, but the phase remains incomplete until all mandatory lanes pass or the user explicitly waives/replaces one.
 
 ## Blocked reviewer artifacts
 
-If an interactive Claude Code Opus 4.8 @ xhigh effort lane is blocked before reading the bundle (for example `Not logged in · Please run /login`):
+If an interactive Claude Code Fable 5 @ xhigh effort lane is blocked before reading the bundle (for example `Not logged in · Please run /login`):
 
 - Save raw pane output and a structured blocker artifact.
 - Record the actual model/banner observed.

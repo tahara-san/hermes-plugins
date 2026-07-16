@@ -1,16 +1,16 @@
-# Buffdemy plan-code Fable 5 review override
+# Buffdemy plan-code Fable 5 default review
 
-Use this reference only when the user explicitly requests Fable 5 for a Buffdemy plan-code review gate. Otherwise use the default `claude-i` model guidance.
+Use this reference for the default Buffdemy plan-code review lane: Fable 5 at xhigh effort, with the latest available Opus as the automatic fallback. Launch with `claude --model fable --fallback-model opus --effort xhigh`, unless the user explicitly requests a different model.
 
 ## Selector procedure
 
 1. Start Claude Code interactively in tmux as usual.
-2. Capture the initial banner. If it already shows `Fable 5`, proceed.
-3. If it shows another model, open `/model`.
+2. Capture the initial banner. If it shows `Fable 5`, proceed. If it shows the latest available `Opus`, verify that Fable was unavailable and record the automatic fallback in the review artifact before proceeding.
+3. If it shows any other model, open `/model`.
 4. Move to the `Fable` row deliberately and capture the selector before confirming. In tmux, a plain `Down` key may not move; use `C-n`/`C-p` when needed.
 5. Confirm the selection session-only with `s` for task-local overrides.
-6. Capture again and verify the banner says `Fable 5 with <effort> effort` before pasting the substantive review prompt.
-7. If Claude reports it set the old model, do not proceed. Reopen `/model`, capture the cursor on Fable, and retry.
+6. Capture again and verify the banner says `Fable 5 with <effort> effort`, or the recorded latest-Opus fallback, before pasting the substantive review prompt.
+7. If Claude reports a model other than Fable 5 or the latest available Opus fallback, do not proceed. Reopen `/model`, capture the cursor on Fable, and retry.
 
 ## Review-bundle practice
 
