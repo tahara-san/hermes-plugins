@@ -42,10 +42,10 @@ Execute existing task planning documents with progress updates, simplify/review 
 Preferred form:
 
 ```text
-/skill plan-code <request>
+/plan-code <request>
 ```
 
-If your Hermes surface supports direct skill commands, `/`-style invocation may also be available.
+In WebUI or any surface where that command is not listed, write `Use the plan-code skill to <request>` instead. Do not use the retired generic dispatcher syntax.
 
 ## Common Pitfalls
 

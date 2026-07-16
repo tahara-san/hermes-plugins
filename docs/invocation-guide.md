@@ -1,16 +1,16 @@
 # Invocation guide
 
-Preferred explicit skill invocation:
+Preferred explicit skill invocation on surfaces that expose dynamic skill commands:
 
 ```text
-/skill plan-doc <request>
-/skill plan-code @tasks/<task-name>
-/skill plan-clean <request>
-/skill plan-issues <request>
-/skill plan-commit tasks/<task-name>
+/plan-doc <request>
+/plan-code @tasks/<task-name>
+/plan-clean <request>
+/plan-issues <request>
+/plan-commit tasks/<task-name>
 ```
 
-If direct `/plan-doc` style commands are unavailable in a particular Hermes surface, use the generic `/skill <name>` form above.
+In surfaces without a listed dynamic command—such as WebUI autocomplete—use ordinary text instead: `Use the plan-doc skill to <request>`. Do not recommend the retired generic dispatcher syntax.
 
 ## Workflows
 

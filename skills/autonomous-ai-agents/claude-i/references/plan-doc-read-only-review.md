@@ -1,6 +1,6 @@
 # Plan-doc read-only review with Claude Code
 
-Use this pattern when the user asks for a Claude Code review of task planning docs (`/skill plan-doc`, `tasks/<slug>/spec.md`, `todo.md`) rather than implementation code.
+Use this pattern when the user asks for a Claude Code review of task planning docs (`/plan-doc`, `tasks/<slug>/spec.md`, `todo.md`) rather than implementation code.
 
 ## Bundle first
 

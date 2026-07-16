@@ -1,6 +1,6 @@
 # Plan-commit pre-commit artifact reconciliation
 
-Use this when `/skill plan-commit` is invoked after a completed plan-code task whose task directory will be committed as an artifact.
+Use this when `/plan-commit` is invoked after a completed plan-code task whose task directory will be committed as an artifact.
 
 ## Why
 
@@ -13,7 +13,7 @@ A plan-code task can be fully finalized before commit, but its artifacts may sti
    - unchecked/in-progress TODO rows.
    - final-report/final-review wording like "placeholder pending", "No commit or push performed", or old live delta claims.
 2. Remove stale pending marker artifacts only after confirming the corresponding final verdict artifacts exist and passed.
-3. Re-scope old no-commit/no-push wording to pre-plan-commit state, e.g. "Before this `/skill plan-commit` invocation, no commit or push had been performed."
+3. Re-scope old no-commit/no-push wording to pre-plan-commit state, e.g. "Before this `/plan-commit` invocation, no commit or push had been performed."
 4. If later UI/fix deltas superseded earlier approved deltas, mark the older sections/artifacts as historical/superseded while keeping their verdicts as evidence.
 5. If final artifact-consistency review files mention a self-excluded placeholder, update them after the actual passing verdict is saved so they no longer claim the placeholder is live.
 6. Generate a small pre-commit artifact-consistency bundle over the live task docs/review JSONs and explicitly exclude the future pre-commit verdict from its own scope.

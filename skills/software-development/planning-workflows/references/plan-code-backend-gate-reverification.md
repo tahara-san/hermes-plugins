@@ -1,6 +1,6 @@
 # Plan-code backend gate re-verification
 
-Use when an explicit `/skill plan-code` task is documented as blocked on an upstream backend/API contract before frontend or client work can begin.
+Use when an explicit `/plan-code` task is documented as blocked on an upstream backend/API contract before frontend or client work can begin.
 
 ## Pattern
 

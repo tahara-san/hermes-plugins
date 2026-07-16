@@ -19,12 +19,12 @@ This local skill replaces the ambiguous local `claude` skill name. Do not patch 
 
 ## Invocation Semantics in Hermes
 
-Hermes skills are not automatically native slash commands.
+Installed Hermes skills can expose dynamic slash commands; WebUI may not list every one in autocomplete.
 
-Preferred user-facing invocations:
+Preferred user-facing invocation when the command is exposed:
 
 ```text
-/skill claude-i
+/claude-i
 ```
 
 ```text
@@ -35,13 +35,13 @@ Use claude-i to review this diff.
 Use claude-i to implement tasks/<task-name>/todo.md.
 ```
 
-If the user writes `/claude-i ...`, treat it as a Claude-Code-style skill trigger phrase when it reaches the model as normal text. Do not assume Hermes command routing handled it before the model saw it.
+If `/claude-i` is not exposed on the current surface, use ordinary text such as `Use the claude-i skill to review this diff.`
 
 Avoid broad trigger terms like bare `claude`, because they may collide with upstream `claude-code`, creative `claude-*` skills, templates, or future native commands.
 
 ### Naming and Alias Hygiene
 
-Raw user-chat tokens can influence skill selection, so do not create broad local aliases like `claude` for this workflow. Keep the explicit name `claude-i` and prefer `/skill claude-i` or “Use claude-i to …”. If a broad local alias already exists, migrate it by creating the explicit replacement, deleting the broad alias with `absorbed_into="claude-i"`, and verifying the skill list. See `references/naming-and-rename-hygiene.md` for the session-specific rename pattern and ambiguity pitfall.
+Raw user-chat tokens can influence skill selection, so do not create broad local aliases like `claude` for this workflow. Keep the explicit name `claude-i` and prefer `/claude-i` or “Use the claude-i skill to …”. If a broad local alias already exists, migrate it by creating the explicit replacement, deleting the broad alias with `absorbed_into="claude-i"`, and verifying the skill list. See `references/naming-and-rename-hygiene.md` for the session-specific rename pattern and ambiguity pitfall.
 
 ## Core Rule
 
@@ -322,7 +322,7 @@ tmux send-keys -t claude-impl Enter
 ## Pitfalls
 
 1. `claude -p` / `--print` may use API/usage paths not covered by the user’s monthly subscription plan. Avoid it by default.
-2. Skills are not automatically native slash commands. Use `/skill claude-i` for explicit loading; treat `/claude-i ...` as a trigger phrase only when it reaches the model as normal text.
+2. Use `/claude-i` when the current surface exposes the dynamic command. Otherwise use ordinary text such as `Use the claude-i skill to …`; do not use the retired generic dispatcher syntax.
 3. `--max-turns`, `--max-budget-usd`, JSON output, and stream-json are print-mode features; do not rely on them in interactive mode.
 4. Shell quoting is still a risk before text reaches tmux. Use `tmux send-keys -l` for one-liners and `tmux load-buffer` + `paste-buffer` for multiline prompts.
 5. Interactive Claude can wait on permission dialogs. Always capture the pane before assuming it is stuck.
@@ -334,7 +334,7 @@ tmux send-keys -t claude-impl Enter
 
 ## Quick Checklist
 
-- [ ] Load/use `/skill claude-i` when avoiding `-p` matters.
+- [ ] Load/use `/claude-i` when exposed, or say `Use the claude-i skill to …`, when avoiding `-p` matters.
 - [ ] Start Claude Code with `claude`, `claude "prompt"`, `claude -c`, or `claude -r`, never `claude -p` by default.
 - [ ] Orchestrate through tmux.
 - [ ] Send prompts with `send-keys -l` or `load-buffer`/`paste-buffer`.

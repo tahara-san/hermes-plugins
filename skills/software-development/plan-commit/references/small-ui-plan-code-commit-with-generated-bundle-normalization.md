@@ -1,10 +1,10 @@
 # Small UI plan-code commit with generated bundle normalization
 
-Use this reference when a small frontend/UI `plan-code` task has completed implementation reviews, has an untracked task directory of review artifacts, and the user invokes `/skill plan-commit`.
+Use this reference when a small frontend/UI `plan-code` task has completed implementation reviews, has an untracked task directory of review artifacts, and the user invokes `/plan-commit`.
 
 ## Pattern captured
 
-1. Treat `/skill plan-commit` as the two-step flow for this user's completed plan-code tasks:
+1. Treat `/plan-commit` as the two-step flow for this user's completed plan-code tasks:
    - commit + push implementation/source/tests plus the completed task artifacts;
    - then remove the now-tracked task directory and commit + push that cleanup.
 2. Before staging, prove the task is commit-ready:

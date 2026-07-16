@@ -1,6 +1,6 @@
 # Plan-code final artifact-consistency stale-doc fixes
 
-Use when a completed `/skill plan-code` task has passed implementation verification and mandatory reviewers, but the final artifact-consistency pass flags stale planning prose rather than source-code blockers.
+Use when a completed `/plan-code` task has passed implementation verification and mandatory reviewers, but the final artifact-consistency pass flags stale planning prose rather than source-code blockers.
 
 ## Pattern
 

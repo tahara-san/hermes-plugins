@@ -1,6 +1,6 @@
 # Plan-issues priority-grouped conversion
 
-Use this conditional reference when the user invokes `/skill plan-issues <priority>` or asks to convert one or more `tasks/out-of-scope-issues/<priority>/` buckets.
+Use this conditional reference when the user invokes `/plan-issues <priority>` or asks to convert one or more `tasks/out-of-scope-issues/<priority>/` buckets.
 
 The canonical contract is `plan-issues/plan-issues.md`; this file only narrows priority-grouped discovery and grouping. It cannot relax the one-task review lifecycle, dependency graph checks, reviewer pins, evidence bounds, or out-of-scope guard.
 

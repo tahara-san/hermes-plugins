@@ -4,7 +4,7 @@ Use this as a concrete example when a plan-code implementation is complete but c
 
 ## What happened
 
-- The user invoked `/skill plan-commit` after a large profile Question/Answer feed task.
+- The user invoked `/plan-commit` after a large profile Question/Answer feed task.
 - Source verification was already green, but task docs still contained stale `pending`/unchecked final-review rows.
 - A final implementation review delegate had completed but did not surface in the parent chat.
 - Generated review bundles contained Markdown trailing whitespace, causing `git diff --cached --check` to fail during staging.

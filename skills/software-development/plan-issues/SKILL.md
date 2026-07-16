@@ -51,8 +51,10 @@ Its CLI validates graph initialization, generates one manifest-bounded bundle, r
 ## Invocation
 
 ```text
-/skill plan-issues <request or priority filters>
+/plan-issues <request or priority filters>
 ```
+
+In WebUI or any surface where that command is not listed, write `Use the plan-issues skill to <request or priority filters>` instead. Do not use the retired generic dispatcher syntax.
 
 ## Common Pitfalls
 

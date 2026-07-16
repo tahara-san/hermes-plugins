@@ -1,10 +1,10 @@
 # Multi-task plan-code commit with artifact consistency
 
-Use when `/skill plan-commit` is invoked after a batch session completed multiple `tasks/<slug>/` plan-code directories in one working tree.
+Use when `/plan-commit` is invoked after a batch session completed multiple `tasks/<slug>/` plan-code directories in one working tree.
 
 ## Pattern
 
-1. **Treat `/skill plan-commit` as a two-step cleanup flow** when invoked directly:
+1. **Treat `/plan-commit` as a two-step cleanup flow** when invoked directly:
    - first commit and push the implementation plus completed task artifacts;
    - then remove the completed task directories, commit, and push that cleanup.
    If the user only says plain "commit and push", stop after the implementation/artifact commit unless cleanup is explicit.

@@ -1,6 +1,6 @@
 # Plan-code final bundle sequencing and artifact consistency
 
-Use when a completed `/skill plan-code` task has implementation reviews, final review artifacts, TODO/final-report reconciliation, and an artifact-consistency gate.
+Use when a completed `/plan-code` task has implementation reviews, final review artifacts, TODO/final-report reconciliation, and an artifact-consistency gate.
 
 ## Problem this prevents
 

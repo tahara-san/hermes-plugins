@@ -4,7 +4,7 @@ Use this when committing a large completed Buffdemy backend `plan-code` task who
 
 ## Pattern captured
 
-1. **Treat `/skill plan-commit` as the two-step flow** when invoked directly for a completed task: first commit/push implementation + task artifacts, then remove the completed task directory and push a cleanup commit.
+1. **Treat `/plan-commit` as the two-step flow** when invoked directly for a completed task: first commit/push implementation + task artifacts, then remove the completed task directory and push a cleanup commit.
 2. **If the task directory is entirely untracked, include it in the implementation commit first.** This preserves review/spec/evidence history and gives the cleanup commit a real tracked deletion.
 3. **Include sanctioned out-of-scope findings that were produced by the task** when they are under the repo's approved out-of-scope path (for Buffdemy backend: `tasks/out-of-scope-issues/<priority>/...`) and clearly discovered during the task. Do not absorb unrelated task dirs.
 4. **Active TODO scans must ignore historical review bundles.** Broad `grep -R '^- [ ]' tasks/<slug>` will find stale embedded TODO snapshots inside generated review bundles. Verify active live docs directly (`progress.md`, `todo-phase-*.md`, `final-report.md` if present) and treat historical bundles as reference-only.

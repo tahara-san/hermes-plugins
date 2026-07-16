@@ -39,10 +39,10 @@ Classify and conservatively clean task directories and out-of-scope issue logs.
 Preferred form:
 
 ```text
-/skill plan-clean <request>
+/plan-clean <request>
 ```
 
-If your Hermes surface supports direct skill commands, `/`-style invocation may also be available.
+In WebUI or any surface where that command is not listed, write `Use the plan-clean skill to <request>` instead. Do not use the retired generic dispatcher syntax.
 
 ## Common Pitfalls
 

@@ -42,10 +42,10 @@ Create or update task planning documents before implementation.
 Preferred form:
 
 ```text
-/skill plan-doc <request>
+/plan-doc <request>
 ```
 
-If your Hermes surface supports direct skill commands, `/`-style invocation may also be available.
+In WebUI or any surface where that command is not listed, write `Use the plan-doc skill to <request>` instead. Do not use the retired generic dispatcher syntax.
 
 ## Common Pitfalls
 

@@ -1,6 +1,6 @@
 # Plan-doc pending interactive Codex review blocker
 
-Use when an explicit `/skill plan-doc` flow has created task docs and a saved review bundle, but the mandatory interactive Codex TUI plan review has not produced a parseable attested verdict.
+Use when an explicit `/plan-doc` flow has created task docs and a saved review bundle, but the mandatory interactive Codex TUI plan review has not produced a parseable attested verdict.
 
 ## Pattern
 

@@ -1,6 +1,6 @@
 # Buffdemy2-web tag feed plan-code execution notes
 
-Use when executing `/skill plan-code` for Buffdemy2-web `/tags/content` tag feed changes, especially adding/removing feed tabs, hiding Refresh, or wiring Question feeds.
+Use when executing `/plan-code` for Buffdemy2-web `/tags/content` tag feed changes, especially adding/removing feed tabs, hiding Refresh, or wiring Question feeds.
 
 ## Lessons from tag Question feed execution
 

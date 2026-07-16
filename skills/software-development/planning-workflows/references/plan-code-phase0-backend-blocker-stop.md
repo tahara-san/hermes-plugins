@@ -1,6 +1,6 @@
 # Plan-code Phase 0 backend blocker stop pattern
 
-Use when an explicit `/skill plan-code` task has a documented Phase 0 backend/API/data-integrity gate that must be verified before frontend or client implementation.
+Use when an explicit `/plan-code` task has a documented Phase 0 backend/API/data-integrity gate that must be verified before frontend or client implementation.
 
 ## Pattern
 

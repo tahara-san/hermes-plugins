@@ -1,6 +1,6 @@
 # Plan-code resume after task artifacts were committed/removed
 
-Use when a `/skill plan-code` task is resumed after prior work may have been committed, cleaned up, or moved by another agent/user while the conversation still contains stale task-dir context.
+Use when a `/plan-code` task is resumed after prior work may have been committed, cleaned up, or moved by another agent/user while the conversation still contains stale task-dir context.
 
 ## Pattern
 

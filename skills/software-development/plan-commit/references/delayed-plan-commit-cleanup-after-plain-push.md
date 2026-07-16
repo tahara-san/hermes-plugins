@@ -1,6 +1,6 @@
 # Delayed plan-commit cleanup after a plain commit/push
 
-Use when the user first asks for a plain `commit and push`, then later invokes `/skill plan-commit` or otherwise asks to finish the plan-commit cleanup flow.
+Use when the user first asks for a plain `commit and push`, then later invokes `/plan-commit` or otherwise asks to finish the plan-commit cleanup flow.
 
 ## Pattern
 
@@ -26,4 +26,4 @@ Use when the user first asks for a plain `commit and push`, then later invokes `
 
 ## Pitfall
 
-Do not assume `/skill plan-commit` always starts from an uncommitted implementation. If the user previously said only `commit and push`, the correct behavior is to stop after that first push. A later explicit `/skill plan-commit` can then resume at cleanup-only phase, but only after readback proves the implementation commit is already pushed and the task directory is tracked.
+Do not assume `/plan-commit` always starts from an uncommitted implementation. If the user previously said only `commit and push`, the correct behavior is to stop after that first push. A later explicit `/plan-commit` can then resume at cleanup-only phase, but only after readback proves the implementation commit is already pushed and the task directory is tracked.

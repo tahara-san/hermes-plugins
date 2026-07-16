@@ -11,18 +11,18 @@ This can make inventory/publishing work confusing: `hermes skills list` reports 
 
 ## Practical Invocation Guidance
 
-For a user who wants the focused workflow, prefer the explicit generic skill form:
+For a user who wants the focused workflow, prefer the focused dynamic skill command when the surface exposes it:
 
 ```text
-/skill plan-doc <request>
-/skill plan-code <request>
-/skill plan-clean <request>
-/skill plan-issues <request>
+/plan-doc <request>
+/plan-code <request>
+/plan-clean <request>
+/plan-issues <request>
 ```
 
-Do not assume direct slash aliases such as `/plan-doc` are registered merely because `skill_view("plan-doc")` succeeds. Direct dynamic slash commands are generated from active `SKILL.md` entries; in the consolidated layout the direct command is usually `/planning-workflows`, not `/plan-doc`.
+Do not assume every surface lists dynamic aliases such as `/plan-doc` merely because `skill_view("plan-doc")` succeeds. Dynamic commands are generated from active `SKILL.md` entries; when a surface does not expose one (including WebUI autocomplete), use ordinary text such as `Use the plan-doc skill to <request>`.
 
-If the user writes `skill /plan-doc <request>` or similar, treat it as intent to load `plan-doc`, but prefer to correct the durable recommendation to `/skill plan-doc <request>`.
+If the user writes the retired generic form or a similar legacy invocation, treat it as intent to load `plan-doc`, but correct the durable recommendation to `/plan-doc <request>` or ordinary-text skill loading where dynamic commands are not exposed.
 
 ## Inventory and Publishing Guidance
 

@@ -1,6 +1,6 @@
 # Plan-code multi-task batches and no-change closures
 
-Use when the user invokes `/skill plan-code` over a directory containing multiple task dirs, especially when some are implementable, some are already satisfied by current source/tests, and some are blocked by explicit product/decision gates.
+Use when the user invokes `/plan-code` over a directory containing multiple task dirs, especially when some are implementable, some are already satisfied by current source/tests, and some are blocked by explicit product/decision gates.
 
 ## Batch triage first
 
