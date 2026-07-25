@@ -4,10 +4,11 @@ Use this when a required `plan-doc` review leg returns useful non-blocking sugge
 
 ## Pattern
 
-1. **Save first-pass reviews before editing.**
-   - If Claude/Codex approves but gives useful non-blocking suggestions that reduce ambiguity, save the raw output as `*-initial-superseded` or `*-final-superseded` before changing docs.
-   - Patch only the task docs/bundle issues that materially help the implementer.
-   - Regenerate the final bundle and rerun both required plan-doc review legs. A prior approval is stale after any task-doc edit.
+1. **Disposition first; save first-pass reviews only if you are actually going to edit.**
+   - Classify each non-blocking suggestion with the blocker predicate in `review-finding-disposition-and-convergence.md`. If none satisfies it, record the dispositions in the round ledger and stop: the approval stands, no supersession, no bundle regeneration, no rerun.
+   - If a suggestion does satisfy the predicate, save the raw output as `*-initial-superseded` or `*-final-superseded` before changing docs.
+   - Patch only the task docs/bundle issues that close a predicate-satisfying finding.
+   - Regenerate the final bundle and rerun both required plan-doc review legs. A prior approval is stale after any judged task-doc edit; writing review-evidence artifacts does not stale it.
 
 2. **Make bundle evidence executable and inspectable.**
    - Generate review bundles from direct filesystem reads where possible, not cached/paginated tool snippets.

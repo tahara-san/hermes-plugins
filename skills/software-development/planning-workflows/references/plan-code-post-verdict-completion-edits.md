@@ -4,7 +4,11 @@ Use this when a final artifact-consistency review passes, but the agent then nee
 
 ## Lesson
 
-A passing artifact-consistency verdict only covers the artifacts as they existed in the reviewed bundle. If `progress.md`, `todo.md`, phase TODOs, final reports, or canonical review JSON are changed after that verdict to convert `pending` / `[~]` / `[ ]` language into complete language, those edits are live task-artifact changes and stale the just-passed verdict for finality.
+A passing artifact-consistency verdict only covers the artifacts as they existed in the reviewed bundle. If `progress.md`, `todo.md`, phase TODOs, or a contract-bearing final report are changed after that verdict to convert `pending` / `[~]` / `[ ]` language into complete language, those are **judged-product** edits and stale the just-passed verdict for finality.
+
+Writing or canonicalizing the review JSON itself is a **review-evidence** edit. It does not stale the verdict and must not trigger another substantive review; validate it deterministically instead — schema, referenced-file existence, digest/size, model/effort and bundle-identity consistency, secret scan, no pending placeholders, task-scoped cleanup. See `review-finding-disposition-and-convergence.md`.
+
+The cheapest fix is to avoid the split entirely: put the task docs into their intended final state **before** the last review so no completion edit is needed afterward.
 
 ## Safe sequence
 
@@ -17,7 +21,7 @@ A passing artifact-consistency verdict only covers the artifacts as they existed
    - manual-gate evidence if the completion claim depends on it;
    - a stale-phrase/status scan over active artifacts.
 4. Create a new self-excluded placeholder for this post-completion consistency pass.
-5. Dispatch a read-only artifact-consistency review focused only on the post-verdict doc/artifact edits.
+5. Dispatch a read-only artifact-consistency review focused only on the post-verdict **judged-product** doc edits. If the only post-verdict writes were review-evidence files, skip the review and run the deterministic evidence-plane validation instead, recording that result in the aggregate.
 6. If it passes, save/canonicalize that final verdict, overwrite/retire the placeholder, validate JSON, run scoped `git diff --check`, and only then report final completion.
 
 ## Pitfalls

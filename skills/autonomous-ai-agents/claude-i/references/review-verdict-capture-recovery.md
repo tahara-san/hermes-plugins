@@ -32,7 +32,7 @@ tmux send-keys -t "$SESSION" C-u
 tmux send-keys -t "$SESSION" '/exit' Enter
 ```
 
-6. If Claude returns non-blocking suggestions and you choose not to implement them, record that disposition in the aggregate verdict so the approval remains current.
+6. If Claude returns non-blocking suggestions, the default is to leave them unimplemented: record one disposition per finding in the aggregate verdict so the approval remains current. Implement only what satisfies the blocker predicate in the planning-workflows reference `review-finding-disposition-and-convergence.md`, and accept the full rerun when you do.
 
 ## Pitfall
 

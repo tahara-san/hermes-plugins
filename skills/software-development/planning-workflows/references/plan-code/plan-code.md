@@ -1,7 +1,7 @@
 ---
 name: plan-code
 description: Use when the user wants Hermes to execute an existing implementation plan (Claude Code /plan-code style). Loads tasks/<task-name> plan docs or an in-context plan, evaluates serial vs parallel execution, implements safe independent batches simultaneously, enforces decision gates, runs simplify before the default parallel Codex interactive TUI GPT-5.6 SOL @ xhigh review + Claude Code Fable 5 @ xhigh effort (`claude-i`) review gate, verifies builds/tests, updates progress, and reports completion. Includes guidance for E2E fixture prerequisite gating in references/e2e-fixture-prerequisite-gating.md.
-version: 1.1.4
+version: 1.2.0
 author: Hermes Agent (migrated from Claude Code planner plugin)
 license: MIT
 metadata:
@@ -26,7 +26,7 @@ Works with either plan files under `tasks/<task-name>/` or an in-context plan.
 
 ## Enforcement Rule
 
-Reference: `references/end-to-end-phase-execution.md` captures the completion/resume guardrails for multi-phase plans, context compression, E2E decision gates, final verification, and requested cleanup. For near-complete tasks, also use `references/last-mile-verification-invalidation.md` to avoid making small final edits after a passing gate without rerunning the affected verification/review. When a phase or batch has multiple mandatory reviewers, use `references/phase-review-loop-discipline.md`: a single concrete worth-addressing finding from any mandatory reviewer keeps the phase open until fixed, verified, and re-reviewed (or explicitly documented as accepted/ignored). When a frontend plan depends on backend APIs or explicitly forbids mocks/local approximations, also use `references/frontend-backend-contract-gating.md` before coding.
+Reference: `references/end-to-end-phase-execution.md` captures the completion/resume guardrails for multi-phase plans, context compression, E2E decision gates, final verification, and requested cleanup. For near-complete tasks, also use `references/last-mile-verification-invalidation.md` to avoid making small final edits after a passing gate without rerunning the affected verification/review. When a phase or batch has multiple mandatory reviewers, use `references/phase-review-loop-discipline.md` together with `../review-finding-disposition-and-convergence.md`: a confirmed **blocking** finding from any mandatory reviewer keeps the phase open until fixed, verified, and re-reviewed, while findings that fail the blocker predicate are dispositioned in the round ledger and do not keep the phase open. When a frontend plan depends on backend APIs or explicitly forbids mocks/local approximations, also use `references/frontend-backend-contract-gating.md` before coding.
 
 Every numbered step and every unchecked `- [ ]` item in the plan is a blocking requirement unless the user explicitly changes scope. Use `/goal` as the standing completion contract when it is present: keep pushing through every task, phase, simplify/review loop, fix, and verification gate until the whole plan is done. If the user invokes `/plan-code` without an explicit `/goal`, internally adopt the same goal-driven behavior instead of stopping after a phase summary. Before implementing, evaluate whether phases/tasks can safely execute in parallel; when they can, implement them simultaneously and then reconcile/review the combined result. Do not skip `simplify`. Do not run the default parallel Codex interactive TUI GPT-5.6 SOL @ xhigh review + Claude Code Fable 5 @ xhigh effort (`claude-i`) review gate before `simplify` has run on the same changed files.
 
@@ -117,7 +117,11 @@ Run the `simplify` skill on this phase's or batch's changed files. Apply simplif
 
 #### 2d. Default Parallel Review Stack (mandatory)
 
-After simplify, review all files changed in this phase or batch with the default two-reviewer gate:
+After simplify, decide the checkpoint tier for this phase or batch, then review with the default two-reviewer gate.
+
+A dedicated per-phase/batch dual-lane review is **required** when the phase touches a high-risk boundary: security, auth, or privacy; schema, data, or financial integrity; transactions, retries, idempotency, concurrency, ownership, or lifecycle; public contracts; irreversible or provider-side effects; foundational shared primitives; or an explicit plan/user requirement for a phase gate. Low-risk phases that have adequate focused verification may instead be grouped into one stable milestone review covering several phases; record the grouping and its risk rationale in the task progress docs. The holistic final review before completion remains mandatory in both cases.
+
+For the review itself:
 
 1. Build one immutable review bundle that includes the implementation diff, relevant untracked files, task docs, verification evidence available so far, static-scan results, and the intended behavior contract.
 2. Preflight both reviewer CLIs and prepare separate task-scoped tmux sessions/prompts. The Codex lane must use bare `codex` with GPT-5.6 SOL @ xhigh, pane-capture attestation, a schema-constrained normalized verdict, and the fail-closed rules in `../codex-cli-review-lane.md`; never use noninteractive `codex exec`, `codex review`, or a Hermes `delegate_task` fallback. The Claude lane must use interactive `claude-i` with Fable 5 @ xhigh effort, automatic latest-Opus fallback, and verified TUI banner/status.
@@ -128,7 +132,13 @@ If a holistic review or either review leg times out on a large diff, do not trea
 
 Treat reviewer output as evidence, not final truth. If a reviewer reports a surprising failure or out-of-scope issue, verify it directly when practical before changing scope, logging a durable issue, or reporting the warning as still active. If later verification disproves or resolves a reviewer-reported issue, remove the transient issue file instead of preserving stale noise.
 
-Fix CRITICAL findings and worth-addressing WARNINGs from any mandatory reviewer, then re-run the affected verification plus `simplify` and both review legs on a regenerated final bundle. Treat the review gate as a union of findings across simplify, Codex interactive TUI GPT-5.6 SOL @ xhigh review, and Claude Code Fable 5 @ xhigh effort review: one concrete unresolved worth-addressing finding means the phase/batch is still in progress even if the other reviewers approved. Iterate until clean or the user explicitly accepts documented ignored warnings.
+Classify every reviewer item with the blocker predicate in `../review-finding-disposition-and-convergence.md` before changing anything, and record exactly one disposition per item in a round ledger under `tasks/<task-name>/reviews/`. Fix confirmed blockers — grounded, concrete, contract-relevant findings that are material to correctness, security/authorization, data or financial integrity, concurrency/lifecycle safety, in-scope public contracts, required verification, or target-environment operability — then rerun the affected verification plus `simplify` and both review legs on a regenerated bundle. Treat the review gate as the union of *blocking* findings across simplify, Codex interactive TUI GPT-5.6 SOL @ xhigh review, and Claude Code Fable 5 @ xhigh effort review: one unresolved confirmed blocker means the phase/batch is still in progress even if the other reviewers approved.
+
+Findings that fail the blocker predicate — style, naming, optional readability, extra hardening beyond adequate acceptance/invariant coverage, speculation without an evidenced failure path, unsupported-environment portability, unrequested refactors, evidence/provenance polish, unrelated pre-existing defects, and rephrased repeats — are parked or accepted with a recorded rationale. Do not edit source, tests, or task docs to satisfy them, because that stales the exact-byte approval and forces both xhigh lanes to re-review the whole bundle. Advisory-only output from both lanes closes the gate with no mutation and no rerun.
+
+Track `bundle_mutating_remediation_count` per gate. Default to at most three bundle-mutating remediation rounds, then enter convergence mode: stop optional improvements, disable broad unrelated simplify edits, deduplicate by stable finding ID, restrict review to blocker closure plus semantically affected scope, park new low-materiality findings automatically, and escalate to the user after one bounded additional blocker round instead of continuing autonomously. Same-byte clarification reruns and process retries are counted separately and do not consume the budget. A late critical security, data-integrity, or correctness finding is still blocking regardless of the budget.
+
+If a required lane returns `CHANGES_REQUIRED` for a finding that objectively fails the blocker predicate, do not override it in the aggregate and do not change judged bytes: save the source-grounded adjudication, run one bounded same-byte clarification rerun of that lane, and keep the companion lane's PASS current because the reviewed bytes did not change. If that lane still returns `CHANGES_REQUIRED`, stop and escalate. A `BLOCKED_PROCESS` lane — wrong model/effort, bad digest, malformed output or preamble before the verdict, missing coverage, missing raw pane, unavailable CLI, unauthorized scope — is never parked and never downgraded to advisory; it stays fail-closed.
 
 When the user explicitly requires Claude Code review for every `/plan-code` review gate, run it after each phase or parallel batch in addition to `simplify` and Codex interactive TUI GPT-5.6 SOL @ xhigh review, and run a holistic Claude Code review before final verification/cleanup. Do not treat an earlier phase Claude Code review as satisfying the holistic gate, and do not move to the next phase after patching Claude findings until affected verification plus the required review set have been rerun.
 
@@ -154,8 +164,8 @@ Progress updates are mandatory before moving to the next phase or optional revie
 For multi-phase plans, after all phases:
 1. Run `simplify` on all files changed across all phases.
 2. Run the default parallel Codex interactive TUI GPT-5.6 SOL @ xhigh review + Claude Code Fable 5 @ xhigh effort (`claude-i`) review stack on all changed files together, using one saved final bundle when safe.
-3. Fix -> simplify -> review until clean.
-4. Document intentionally ignored warnings in `tasks/<task-name>/ignored-warnings.md`.
+3. Fix -> simplify -> review, but only for confirmed blockers. Advisory-only output from both lanes closes the holistic gate with no source/test/doc mutation and no rerun. Enter convergence mode at the third bundle-mutating remediation round and escalate to the user after one bounded additional blocker round.
+4. Record every reviewer item's disposition in the round ledger under `tasks/<task-name>/reviews/` (for example `reviews/round-<n>/dispositions.json`) with materiality, evidence, failure mode, contract/invariant, rationale, and residual risk. A legacy `tasks/<task-name>/ignored-warnings.md` remains readable for older tasks, but new runs use the structured ledger. Route `park-follow-up` and `out-of-scope` items into the repository's deduplicated out-of-scope issue policy; `accept-no-action` items need only the ledger rationale.
 
 Skip only for single-phase plans.
 
@@ -242,7 +252,12 @@ If verification fails:
 
 ## Common Pitfalls
 
-- Treating a reviewer JSON field like `passed: true` as the whole review result. If `worth_addressing` contains concrete code-quality or correctness findings, either fix them and rerun the affected gates or explicitly document why they are accepted/ignored before moving on to Claude/final verification.
+- Treating a reviewer JSON field like `passed: true` as the whole review result. Read `worth_addressing` / `NON_BLOCKING` too, but treat it as an observation list, not a work queue: classify each item with the blocker predicate, fix and rerun the affected gates only for confirmed blockers, and record a disposition for the rest before moving on.
+- Treating the reviewer's advisory list as mandatory remediation. Applying an optional suggestion mutates judged bytes, stales the exact-byte approval, and forces both xhigh lanes to reread the whole bundle — the main cause of multi-day gates. See `../review-finding-disposition-and-convergence.md`.
+- Editing source, tests, or task docs solely to record that a finding was parked. Dispositions belong in the review-evidence plane under `tasks/<task-name>/reviews/`.
+- Running another substantive dual-lane review over generated gate artifacts when no judged-product byte changed. Validate the evidence plane deterministically instead (schema, referenced files, digest/size, model/effort and bundle identity, secret scan, no pending placeholders, task-scoped cleanup).
+- Parking or downgrading a process failure. A wrong model/effort, bad digest, malformed verdict, preamble before the verdict block, missing coverage, missing raw pane, unavailable CLI, or out-of-scope review is `BLOCKED_PROCESS` and stays fail-closed.
+- Letting an aggregate artifact declare the gate passed while a required lane returned `CHANGES_REQUIRED`. Adjudicate, run one bounded same-byte clarification rerun of that lane, then escalate — never override.
 - Running review before simplify, or running only one leg of the default Codex interactive TUI GPT-5.6 SOL @ xhigh review + Claude Code Fable 5 @ xhigh effort (`claude-i`) stack when both are required.
 - Treating a general "don't ask questions" preference as a per-task "just decide" decision bypass.
 - Moving to the next phase while TODO/progress files still show unchecked phase items.

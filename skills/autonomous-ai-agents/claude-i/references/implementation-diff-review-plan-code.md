@@ -17,7 +17,7 @@ Use when the user asks Claude Code to review local diffs after a `plan-code` tas
    - search the saved bundle for truncation markers such as `[OUTPUT TRUNCATED` or `... omitted ...`;
    - ensure any included source snapshots are from the current working tree, not stale baseline copies;
    - if the bundle is truncated or stale, rebuild it with direct `git`/file reads (not capped tool output) before launching reviewers.
-4. Launch Claude Code through tmux with `claude` (not `claude -p`) and paste a prompt pointing at the bundle.
+4. Launch Claude Code through tmux with `claude` (not `claude -p`) and paste a prompt pointing at the bundle. The prompt must state the materiality contract: a finding is blocking only when it is grounded in the bundle, names a concrete failure mode, violates an explicit requirement/acceptance criterion/repository rule/verification guarantee, and is material to correctness, security/authorization, data or financial integrity, concurrency/lifecycle safety, an in-scope public contract, required verification, or target-environment operability. Style, naming, optional readability, extra test hardening beyond adequate coverage, speculation, unsupported-environment portability, and unrequested refactors are non-blocking. `APPROVED` is correct when only non-blocking suggestions remain. Every blocking finding must carry evidence, failure mode, violated contract, and required correction, and the verdict block must appear with no preamble before it.
 5. If Claude requests to read the prepared `/tmp` bundle, allow that read. Allow narrow read-only source-file inspection if Claude asks to verify a specific hunk in context.
 6. Save the complete verdict under the task directory, e.g. `tasks/<slug>/reviews/claude-code-diff-review.md`, including:
    - timestamp
@@ -25,9 +25,12 @@ Use when the user asks Claude Code to review local diffs after a `plan-code` tas
    - bundle path
    - included verification evidence
    - exact verdict, blocking findings, non-blocking suggestions, and summary
-   - disposition of non-blocking suggestions.
-7. If Claude returns blocking findings, fix narrowly, rerun affected verification, rebuild the bundle, and rerun Claude review.
-8. If Claude returns only non-blocking suggestions, prefer avoiding post-review churn unless the suggestion materially improves correctness. If left unapplied, document why in the review artifact.
+   - lane/process state (`QUALIFYING` or `BLOCKED_PROCESS`)
+   - one recorded disposition per finding with a stable finding ID, materiality, rationale, and residual risk.
+7. If Claude returns findings that satisfy the blocker predicate, fix narrowly, rerun affected verification, rebuild the bundle, and rerun Claude review.
+8. If Claude returns only non-blocking suggestions, the gate is complete. Do not apply them: a post-review edit stales the exact-byte approval and forces a full rerun. Record each disposition in the review artifact and move on. Apply a suggestion only when it independently satisfies the blocker predicate, and then pay the full rerun.
+9. If Claude returns `CHANGES_REQUIRED` on findings you adjudicate as failing the blocker predicate, do not override the verdict in the aggregate and do not change judged bytes. Save the adjudication, run one bounded same-byte clarification rerun of this lane against the unchanged bundle, and keep the companion lane's PASS current. If it still returns `CHANGES_REQUIRED`, stop and escalate to the user.
+10. A preamble before the verdict block, a missing/incomplete pane, a wrong model/effort banner, or an unparseable verdict is `BLOCKED_PROCESS`, not a content result. Fail closed and run one bounded same-byte retry; a second failure stops for explicit user resume.
 
 ## Unimplemented / docs-only task state
 

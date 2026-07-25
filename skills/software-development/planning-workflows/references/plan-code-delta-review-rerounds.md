@@ -8,6 +8,35 @@ Use this reference when an explicit `plan-code` workflow has already completed a
 - **Clean baselines are explicit.** A verdict can be carried forward only for content that has a saved clean baseline: round id, reviewer artifact path(s), reviewed file/chunk list, and the current state hash (`git diff` hash, blob hash, or equivalent bundle hash).
 - **Delta rerounds are allowed only after a clean baseline exists.** A failed full round creates no carry-forward baseline for failed content. Non-flagged files/chunks gain carry-forward baselines only when the reviewer verdict or aggregate artifact explicitly records them as clean at a hash/state. The next reround is full for any file/chunk without a clean baseline.
 - **Under-scoped deltas fail closed.** If the semantic impact boundary is uncertain, rerun the full gate instead of guessing.
+- **Only judged-product changes create a reround.** Code, tests, fixtures, migrations, task docs, executable commands/contracts, intended commit artifacts, and contract-bearing final reports stale approvals. Review-evidence writes — raw panes, normalized verdicts, disposition ledgers, gate JSON, cleanup evidence, supersession records, parked-advisory issue files — do not, and are validated deterministically instead. See `review-finding-disposition-and-convergence.md`.
+- **Only confirmed blockers justify the fix that creates the reround.** An advisory finding is dispositioned, not implemented; an advisory-only round is terminal.
+
+## Scope Freeze After Round 1
+
+Round 1 of each gate is broad. Every later round narrows to:
+
+1. closure of prior blocker IDs;
+2. changed bytes;
+3. semantically affected neighbors;
+4. newly discovered critical/high material defects.
+
+A later reviewer may still raise a real material defect outside the delta, but it must satisfy the blocker predicate. New polish and speculative hardening surfaced in later rounds are parked, not folded into the reround.
+
+## Convergence Mode
+
+Track `bundle_mutating_remediation_count` per gate. Default to three bundle-mutating remediation rounds before entering convergence mode. Same-byte clarification reruns and process retries are separate round types and do not consume the budget.
+
+In convergence mode:
+
+- stop applying optional improvements and disable broad unrelated simplify edits;
+- deduplicate findings by stable ID so a reworded repeat cannot restart the loop;
+- review only blocker fixes and semantically affected scope under this delta protocol;
+- require any new late blocker to state its concrete material failure plus its relation to changed bytes, an explicit contract, or a material safety invariant inside the reviewed scope;
+- park new low-materiality findings automatically;
+- fix and review a remaining material blocker;
+- if the gate has not converged after one bounded additional blocker round, stop and escalate to the user instead of continuing autonomously.
+
+The budget is not auto-approval. A late critical security, data-integrity, or correctness finding remains blocking regardless of the round count.
 
 ## Delta Scope
 
@@ -60,6 +89,9 @@ A delta review artifact should include:
 - carried-forward files/chunks;
 - verification commands rerun for the delta;
 - reviewer verdicts for the delta scope;
+- round coverage type: `full`, `delta`, `same-byte-clarification`, or `process-retry`;
+- running `bundle_mutating_remediation_count` and convergence-mode status;
+- novel finding IDs vs duplicates, and the disposition ledger path;
 - explicit statement that unchanged carried-forward files were not fully re-reviewed in this round.
 
 ## Pitfalls
@@ -67,5 +99,9 @@ A delta review artifact should include:
 - Calling a reround "delta" without baseline hashes or artifact paths.
 - Carrying forward a verdict for a file whose content changed after the clean round.
 - Reviewing only the edited file when a signature/schema/index/config change affects neighbors.
-- Letting optional suggestion churn invalidate approvals repeatedly; record low-value suggestions instead of implementing them unless they materially reduce correctness or security risk.
+- Letting optional suggestion churn invalidate approvals repeatedly; record low-value suggestions instead of implementing them unless they satisfy the blocker predicate.
+- Starting a reround at all when the round's only findings were advisory. An advisory-only round is terminal.
+- Rerounding because a disposition ledger, raw pane, or gate JSON was written. Those are review-evidence, not judged product.
+- Assigning a new finding ID to a reworded repeat, which inflates the novel-finding count and prevents convergence.
+- Counting a same-byte clarification rerun or a schema-recovery retry against the bundle-mutating remediation budget.
 - Using a delta reround after a CRITICAL finding without an explicit full-rerun decision.

@@ -2,36 +2,64 @@
 
 Use this when `/plan-code` requires simplify, independent review, and Claude Code review after each phase/batch.
 
+Read it together with `../../review-finding-disposition-and-convergence.md`, which is the canonical authority on which findings block. This file covers how the phase loop consumes those verdicts.
+
 ## Lesson
 
-Treat the phase review gate as the union of all mandatory reviewers, not as a majority vote. If simplify says approved and Claude says approved, but the independent reviewer reports a concrete worth-addressing finding, the phase is still not ready for sign-off unless one of these happens:
+Treat the phase review gate as the union of all mandatory reviewers' **blocking** findings, not as a majority vote and not as the union of every observation. If simplify says approved and Claude says approved, but the independent reviewer reports a finding that satisfies the blocker predicate, the phase is not ready for sign-off unless:
 
 1. Fix the finding.
 2. Rerun the affected verification.
 3. Rerun the affected mandatory review gate.
 4. Only then update task TODO/progress files to complete.
 
-Do not mark a phase complete while a mandatory reviewer has an unresolved worth-addressing finding, even if another reviewer labels similar concerns non-gating. If the finding is intentionally ignored, document it explicitly in the plan's ignored-warnings file or progress docs with rationale and user acceptance when needed.
+Do not mark a phase complete while a mandatory reviewer has an unresolved **confirmed blocker**, even if another reviewer labels it non-gating. A required lane's `CHANGES_REQUIRED` can never be overridden by the aggregate artifact.
 
-## Concrete trigger pattern
+## The symmetric rule
 
-A common failure mode in long plans:
+A finding that does **not** satisfy the blocker predicate does **not** keep the phase open. Record its materiality and disposition in the round ledger and move on. Style, naming, optional readability, extra hardening beyond adequate acceptance/invariant coverage, speculation without an evidenced failure path, unsupported-environment portability, unrequested refactors, evidence polish, unrelated pre-existing defects, and rephrased repeats are parked or accepted — not implemented.
+
+Applying an optional suggestion is not free: it mutates judged bytes, stales the exact-byte approval, and sends both xhigh lanes back over the whole bundle. That is how a phase gate turns into a multi-day loop with no source defect in sight.
+
+## Concrete trigger patterns
+
+**Blocking (phase stays open):**
 
 - Phase implementation and targeted tests pass.
 - Simplify returns `APPROVED`.
 - Claude Code returns `APPROVED` with minor notes.
-- Independent review finds a real semantic edge case.
-- The agent updates progress or moves to the next phase anyway.
+- The independent reviewer finds a real semantic edge case with a concrete failure mode against an explicit acceptance criterion.
+- Correct behavior: stop phase advancement, patch the edge case, rerun targeted checks, then rerun simplify + independent review + Claude Code for the phase.
 
-Correct behavior: stop phase advancement, patch the edge case, rerun targeted checks, then rerun simplify + independent review + Claude Code for the phase.
+**Non-blocking (phase closes):**
+
+- Both mandatory lanes return `PASS`.
+- One lane adds two documentation-accuracy notes and a suggestion to add another assertion to an already adequately covered path.
+- Correct behavior: record both notes as `ADVISORY` with dispositions (`accept-no-action` or `park-follow-up`) in the round ledger, change no judged bytes, and close the phase. Do not regenerate the bundle. Do not rerun either lane.
+
+**Suspected misclassification:**
+
+- A required lane returns `CHANGES_REQUIRED` on a finding that fails the blocker predicate.
+- Correct behavior: verify against the allowed evidence, save the adjudication, change no judged bytes, run **one** bounded same-byte clarification rerun of that lane citing the policy, and keep the companion lane's PASS current. If it still returns `CHANGES_REQUIRED`, stop and escalate to the user rather than negotiating in the old session or overriding the verdict.
+
+**Process failure (never parked):**
+
+- Wrong model/effort, bad digest, preamble before the verdict block, unparseable verdict, missing coverage, missing raw pane, unavailable CLI, or review outside the authorized scope.
+- Correct behavior: mark the lane `BLOCKED_PROCESS`, fail closed, and run one bounded same-byte process retry. A second failure stops for explicit user resume/override.
+
+## Checkpoint tiering
+
+Not every phase needs its own dual-lane gate. Require a per-phase/batch review when the phase touches security/auth/privacy, schema/data/financial integrity, transactions/retries/idempotency/concurrency/ownership/lifecycle, public contracts, irreversible or provider-side effects, foundational shared primitives, or an explicit plan/user phase gate. Group low-risk phases with adequate focused verification into one milestone review and record the rationale. The holistic final review stays mandatory either way.
 
 ## Good status language under tool limits
 
-If a tool-call/resource limit stops the session before the review loop is clean, report:
+If a tool-call/resource limit stops the session before the blocker loop is closed, report:
 
 - phase is still `in_progress`, not complete;
 - implementation/verification commands that actually passed;
-- exact unresolved reviewer finding;
+- exact unresolved **blocking** reviewer finding and its stable finding ID;
+- parked findings and their dispositions, so the next session does not re-litigate them;
+- the running bundle-mutating remediation count and convergence-mode status;
 - exact next steps to resume.
 
-Never imply completion just because most gates passed.
+Never imply completion just because most gates passed. Equally, never imply a phase is incomplete because an advisory list is non-empty.

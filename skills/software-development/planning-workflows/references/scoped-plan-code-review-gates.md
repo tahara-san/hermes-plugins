@@ -31,7 +31,7 @@ Do not fabricate task docs just to satisfy the full workflow when the session wa
 9. Save artifacts. For scoped gates, `/tmp/<task>-bundle.txt`, `/tmp/<task>-codex-tui-raw.txt`, `/tmp/<task>-codex-tui-review.json`, `/tmp/<task>-claude-review.md`, and `/tmp/<task>-aggregate.json` are acceptable when the user did not ask for committable task artifacts. For coupled multi-repo changes, prefer `/tmp/<task>-<repo>-bundle.txt` per repo plus a shared intent statement in every bundle/reviewer prompt.
 10. If the scoped change spans multiple repositories, keep bundles, verification, staging, commits, pushes, and readbacks repo-local. Do not assume matching branch names; commit each repo on its current branch after its reviewed scope is staged explicitly. Use the multi-repo pattern in `requesting-code-review/references/multi-repo-contract-review-and-commit.md` for API-contract changes.
 11. If review finds a real issue (including stale tests/selectors), fix it narrowly, run impacted verification, regenerate the bundle, and rerun both review legs on the final bundle. Do not count pre-fix approval or partial Claude output as final approval.
-11. If any non-blocking suggestion is adopted, rerun impacted verification and both review legs because the approval is stale. Otherwise record suggestions without churn.
+11. Adopt a non-blocking suggestion only when it satisfies the blocker predicate in `review-finding-disposition-and-convergence.md`; then rerun impacted verification and both review legs because the approval is stale. Otherwise record one disposition per suggestion and close the gate without churn.
 12. Finish with a compact audit that marks task docs/TODO as `no — scoped gate only`, not as failed workflow steps.
 
 ## Pitfalls

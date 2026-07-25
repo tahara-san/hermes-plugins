@@ -15,11 +15,12 @@ A task can be substantially implemented and verified but still not complete if t
 4. Before final response:
    - search the task directory for unchecked boxes, `pending`, `in_progress`, `TODO`, and unresolved decision markers,
    - run simplify and independent review gates,
-   - fix worth-addressing findings,
+   - disposition every reviewer finding under `../../review-finding-disposition-and-convergence.md`, remediate confirmed blockers, and park the rest without mutating judged bytes,
    - run final targeted/static/build verification,
    - only then perform requested task-file cleanup.
 5. When a review-driven fix changes async/debounced/throttled React callbacks, verify both lifecycle cleanup and stale-closure behavior. A fix that preserves pending callbacks across rerenders must also make the callback read latest state/props/config (usually via refs) and should add a regression test for rerender-after-schedule behavior.
-6. If tool/context limits interrupt execution, state that it is an infrastructure interruption, not completion; the next run must resume from task files, not from memory alone. If interruption happens after a partial edit, name the exact file(s), the partially applied change, and the next verification/review gate to run.
+6. A gate that returns advisory-only findings from every mandatory lane is complete. Do not treat a non-empty non-blocking list as remaining work, and do not start another remediation round for it.
+7. If tool/context limits interrupt execution, state that it is an infrastructure interruption, not completion; the next run must resume from task files, not from memory alone. If interruption happens after a partial edit, name the exact file(s), the partially applied change, and the next verification/review gate to run.
 
 ## E2E decision gates
 When a plan says not to assume another E2E user, do not add or depend on one. If a paid/privileged role is needed for final E2E proof and no approved identity exists, document the blocker and verify the non-blocked scope with unit/component/static checks.

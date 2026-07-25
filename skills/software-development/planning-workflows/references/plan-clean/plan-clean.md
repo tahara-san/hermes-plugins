@@ -55,7 +55,7 @@ For each task dir, read all `*.md` files.
 Decision tree:
 
 1. `git status --porcelain <dir>` shows uncommitted changes -> incomplete, keep.
-2. `ignored-warnings.md` exists/linked and has unchecked items -> incomplete.
+2. `ignored-warnings.md` (legacy) or a review disposition ledger exists/linked and has unchecked items or `remediate-now` dispositions still open -> incomplete. Parked, accepted, rejected, duplicate, and out-of-scope dispositions are closed outcomes and do not make a task incomplete.
 3. `progress.md` exists -> use the authoritative progress rule below.
 4. Any unchecked `- [ ]` in plan files -> incomplete.
 5. At least one checked `- [x]` and zero unchecked items -> complete candidate.

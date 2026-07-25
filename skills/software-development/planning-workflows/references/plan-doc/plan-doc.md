@@ -1,7 +1,7 @@
 ---
 name: plan-doc
 description: Use when the user wants Hermes to create task planning documents before implementation (Claude Code /plan-doc style). Produces tasks/<task-name>/spec.md plus todo.md or phase TODOs, with decision gates, dependency/parallelization analysis, manual-handling notes, simplify review, and the default parallel Codex interactive TUI GPT-5.6 SOL @ xhigh review + Claude Code Fable 5 @ xhigh effort (`claude-i`) review gate preserved for Hermes workflows.
-version: 1.1.4
+version: 1.2.0
 author: Hermes Agent (migrated from Claude Code planner plugin)
 license: MIT
 metadata:
@@ -151,10 +151,10 @@ For large plans, also include `## Implementation Rules` and `## Implementation W
 Implementation workflow must preserve this sequence:
 
 1. Implement a serial phase or a documented parallel batch.
-2. Run `simplify` on changed files and apply worthwhile simplifications.
+2. Run `simplify` on changed files and apply worthwhile simplifications. Broad simplify runs before the first review freeze; after review, simplify only the blocker fix and its affected scope.
 3. Build one immutable review bundle, then run Codex interactive TUI GPT-5.6 SOL @ xhigh review and Claude Code Fable 5 @ xhigh effort (`claude-i`) review against that same bundle, launching both before waiting on either lane.
-4. Fix critical or worth-addressing warnings.
-5. Repeat simplify -> review until clean or documented as intentionally ignored.
+4. Disposition every reviewer item using the blocker predicate in `../review-finding-disposition-and-convergence.md`, and remediate only confirmed blockers. Advisory, insignificant, unsupported, duplicate, and out-of-scope findings get a recorded disposition and no source edit.
+5. Repeat simplify -> review only after a blocker fix changes judged-product bytes. Advisory-only reviewer output closes the gate. Default to at most three bundle-mutating remediation rounds, then enter convergence mode and escalate rather than continuing optional churn.
 6. Run build/tests using project-appropriate commands.
 
 ### Step 6: Write TODO Documents
@@ -214,10 +214,10 @@ Before reporting completion, run simplification and the default parallel review 
 3. Preflight both reviewer CLIs and prepare separate task-scoped tmux sessions/prompts. The Codex lane must use bare `codex` with GPT-5.6 SOL @ xhigh, pane-capture attestation, a schema-constrained normalized verdict, and the fail-closed rules in `../codex-cli-review-lane.md`; never use noninteractive `codex exec`, `codex review`, or a Hermes `delegate_task` fallback. The Claude lane must use interactive `claude-i` with Fable 5 @ xhigh effort, automatic latest-Opus fallback, and verified TUI banner/status.
 4. Launch every required independent review lane before waiting for, polling, monitoring, adjudicating, or fixing findings from any one lane. Submit the same immutable-bundle review prompt to both tmux sessions before monitoring either reviewer. Do not run Codex to completion and only then launch Claude Code, or vice versa. If a lane cannot launch, document the blocker and treat the gate as blocked unless the user waives that lane.
 5. Save separate Codex interactive TUI GPT-5.6 SOL @ xhigh review and Claude Code Fable 5 @ xhigh effort (`claude-i`) review artifacts plus one aggregate verdict under `tasks/<task-name>/reviews/`. The aggregate artifact must record bundle path, reviewer tool/model, both verdicts, static-scan status if applicable, verification status if applicable, and timestamp.
-6. Revise on blocking findings and on non-blocking suggestions that materially improve execution safety, verification, blocker handling, or scope control.
-7. If any review-driven doc change is applied, regenerate the bundle and rerun both review legs so the final report is not based on stale review artifacts.
-8. If either reviewer times out, wedges, returns an incomplete/unparseable verdict, or cannot inspect the intended scope, treat that leg as failed/blocked; retry with a narrower bundle when practical. Do not claim the plan "passed" review unless both legs pass or the user explicitly waives one.
-9. Iterate until clean or explicitly document ignored/waived warnings.
+6. Classify every reviewer item with the blocker predicate in `../review-finding-disposition-and-convergence.md` and record exactly one disposition per item (`remediate-now`, `park-follow-up`, `accept-no-action`, `reject-unsupported`, `duplicate`, `out-of-scope`) in a round ledger saved under `tasks/<task-name>/reviews/`. Revise the plan docs only for `remediate-now` blockers — findings that are grounded, concrete, contract-relevant, and material to execution safety, required verification, authorization/data-integrity behavior, in-scope contracts, or a missing decision that would force the implementer to invent material behavior. Wording is blocking only when it can cause unsafe implementation, incorrect commands, wrong authorization behavior, or data loss. Cosmetic polish, optional readability, extra hardening beyond adequate coverage, speculation, and rephrased repeats are parked, not applied.
+7. If a blocker fix changes the plan docs, regenerate the bundle and rerun both review legs so the final report is not based on stale review artifacts. If both lanes pass with advisory-only findings, the plan is reviewed: do not touch the docs, do not regenerate the bundle, and do not rerun a lane. Writing the disposition ledger and review artifacts is review-evidence, not a plan-doc change, and never stales the approval.
+8. If either reviewer times out, wedges, returns an incomplete/unparseable verdict, emits a preamble before the verdict block, cannot attest the required model/effort, or cannot inspect the intended scope, that leg is `BLOCKED_PROCESS`: fail closed and retry with a narrower bundle when practical. Process failures are never parked or downgraded to advisory. Default to one fresh retry per lane/bundle; a second failure stops for explicit user resume/override. Do not claim the plan "passed" review unless both legs pass or the user explicitly waives one.
+9. When a required lane returns `CHANGES_REQUIRED` for a finding that objectively fails the blocker predicate, do not override it in the aggregate and do not edit the docs: save the adjudication, run one bounded same-byte clarification rerun of that lane citing the policy and evidence, and keep the companion lane's PASS current. If the lane still returns `CHANGES_REQUIRED`, stop and escalate to the user instead of negotiating further.
 
 When the user asks for `/plan-doc`-style review after implementation has already happened, treat the saved plan as a completed handoff artifact, not as an active pre-implementation TODO. Update stale plan wording and commands to match the actual implementation, record the actual changed files, dependency/serial-vs-parallel assessment, simplify/review outcomes, final verification commands/results, static-scan result when relevant, and `git diff --check` result. Then rerun a doc-only independent review if those notes changed.
 
@@ -242,7 +242,7 @@ End every ready-plan `/plan-doc` response with a copy-pasteable prompt. This app
 End with a copy-pasteable prompt:
 
 ```text
-/goal Complete tasks/<task-name> end-to-end: execute every unchecked task/phase, run any documented independent phases/tasks in parallel, run simplify and the default parallel Codex interactive TUI GPT-5.6 SOL @ xhigh review + Claude Code Fable 5 @ xhigh effort (`claude-i`) review gates, fix worth-addressing findings, run verification, and clean up requested task files. Keep pushing forward without pausing between phases; stop only for unresolved user decisions, manual-handling requirements, unfixable verification failures, user interruption, or an infrastructure resource limit that prevents further tool calls.
+/goal Complete tasks/<task-name> end-to-end: execute every unchecked task/phase, run any documented independent phases/tasks in parallel, run simplify and the default parallel Codex interactive TUI GPT-5.6 SOL @ xhigh review + Claude Code Fable 5 @ xhigh effort (`claude-i`) review gates, remediate confirmed blocking findings and record a disposition for every other finding without mutating judged bytes, run verification, and clean up requested task files. Keep pushing forward without pausing between phases; stop only for unresolved user decisions, manual-handling requirements, unfixable verification failures, user interruption, a review gate that has not converged within its remediation budget, or an infrastructure resource limit that prevents further tool calls.
 
 /plan-code @tasks/<task-name>
 
@@ -264,6 +264,8 @@ Do not start implementation in `plan-doc`.
 - Planning tests that only cover the surface symptom instead of the exact failure mode. If the suspected bug involves omitted optional fields being passed as explicit `undefined`, stale state, retry re-entry, serialization, or another subtle mechanism, require at least one regression test that exercises that mechanism directly; a happy-path partial update that would pass before the fix is not sufficient.
 - Writing multi-command verification blocks that are not copy-paste safe. When commands change directories across packages/apps, use subshells like `(cd packages/foo && bun run build)` / `(cd apps/api && bun run build)` or explicitly reset to the repo root between commands; avoid sequential `cd a && ...` then `cd b && ...` blocks that fail because the shell remains in `a`.
 - Planning only the happy-path file edit while missing update-path mechanics around it (for example React memo comparators, hook dependency arrays, prop sanitization, stale async callbacks, or library-managed DOM state).
+- Treating every reviewer observation as mandatory remediation. Applying an advisory-only note stales the exact-byte approval and forces both xhigh lanes to reread the whole bundle; classify with the blocker predicate first and park what fails it. See `../review-finding-disposition-and-convergence.md`.
+- Editing plan docs just to record that a finding was parked. The disposition ledger belongs in the review-evidence plane under `tasks/<task-name>/reviews/`, not in `spec.md` or the TODO files.
 - Silently choosing an architectural/API decision that should be surfaced.
 - Treating Codex authentication/model/effort failures as permission to substitute a Hermes reviewer. The external Codex interactive TUI GPT-5.6 SOL @ xhigh lane is required unless explicitly waived; Claude Code remains the separate CLI-based `claude-i` lane.
 - Putting vague TODOs like "fix errors" instead of atomic file/function-level tasks.

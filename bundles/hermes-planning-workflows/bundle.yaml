@@ -1,5 +1,5 @@
 name: hermes-planning-workflows
-version: 0.2.0
+version: 0.3.0
 description: Contract-first planning, dependency-ordered task waves, one task-local interactive Codex/Claude review pair at a time, execution, cleanup, simplification, and safety hooks for Hermes Agent.
 skills:
   - skills/software-development/planning-workflows

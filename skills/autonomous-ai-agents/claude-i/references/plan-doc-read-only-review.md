@@ -24,13 +24,18 @@ Tell Claude explicitly:
 - Do not edit files, commit, or run tests/build/lint.
 - Inspect only the provided bundle unless there is a clear reason to request more.
 - Check completeness, internal consistency, safety gates, acceptance criteria, verification commands, simplify/review gates, manual notes, and kickoff prompt.
-- Return a bounded verdict format, for example:
+- Judge the plan against its explicit stated scope, not an imagined ideal plan.
+- A finding is **blocking** only when it is grounded in the bundle, names a concrete failure mode, violates an explicit requirement/acceptance criterion/repository rule/verification guarantee, and is material — it can cause unsafe implementation, incorrect commands, wrong authorization or data-integrity behavior, a missing decision that forces the implementer to invent material behavior, or a required verification that cannot establish the promised guarantee.
+- Do **not** turn wording style, formatting, naming, optional readability, extra hardening beyond adequate coverage, speculation without an evidenced failure path, or unsupported-environment portability into blocking findings. Report those as non-blocking suggestions.
+- `APPROVED` is the correct verdict when only non-blocking suggestions remain.
+- Each blocking finding must state its evidence, failure mode, the violated requirement, and the required correction. Do not return `CHANGES_REQUIRED` with an empty or unexplained blocking list.
+- Return a bounded verdict format with no preamble before the verdict line, for example:
 
 ```text
 VERDICT: APPROVED or CHANGES_REQUIRED
 
 BLOCKING FINDINGS:
-- If none, write "None".
+- If none, write "None". Otherwise: evidence, failure mode, violated requirement, required correction.
 
 NON-BLOCKING SUGGESTIONS:
 - If none, write "None".
@@ -51,9 +56,13 @@ If Claude asks to run commands during a plan-doc review, keep the gate read-only
 
 ## If Claude suggests doc polish
 
-If the suggestions are useful, patch the task docs directly. Any post-review change makes the approval stale, even if it is documentation-only. Regenerate the bundle and rerun Claude review on the final docs before claiming the review gate passed.
+Do not patch by default. Classify each suggestion with the blocker predicate above and record one disposition per item in the round ledger — the ledger is review-evidence, so writing it does not stale anything.
 
-If the final rerun is already `APPROVED` and returns only minor non-blocking polish, do not create an endless stale-review loop by editing again automatically. Save those remaining suggestions in the review artifact with a disposition such as "left as non-blocking implementation guidance" unless they materially change acceptance criteria, safety, or implementation scope.
+Patch the task docs only for a confirmed blocker. Any judged-product change makes the approval stale even when it is documentation-only, so regenerate the bundle and rerun Claude review on the final docs before claiming the gate passed.
+
+If the verdict is `APPROVED` with only non-blocking polish, the gate is done. Save those suggestions in the review artifact with a disposition such as "left as non-blocking implementation guidance" and do not edit again — editing here is exactly what creates the endless stale-review loop.
+
+If Claude returns `CHANGES_REQUIRED` on a finding you adjudicate as failing the blocker predicate, do not override the verdict and do not edit the docs to appease it. Save the adjudication, then run one bounded same-byte clarification rerun of this lane against the unchanged bundle, restating the materiality policy. If it still returns `CHANGES_REQUIRED`, stop and escalate to the user.
 
 ## Artifact
 

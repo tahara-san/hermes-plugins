@@ -5,11 +5,13 @@ Use when an explicit `plan-doc` flow creates task docs, runs a companion Claude/
 ## Pattern
 
 1. **Save the first reviewer artifact immediately**
-   - If Claude/CLI returns `PASS` with non-blocking suggestions worth adopting, save it as an initial/superseded artifact rather than losing the verdict.
-   - Mark why it is superseded: plan docs changed after the review.
+   - If Claude/CLI returns `PASS` with non-blocking suggestions, first classify each one with the blocker predicate in `review-finding-disposition-and-convergence.md`. Adopt only what satisfies it; record dispositions for the rest.
+   - If at least one suggestion is adopted, save the verdict as an initial/superseded artifact rather than losing it, and mark why it is superseded: plan docs changed after the review.
+   - If nothing is adopted, the `PASS` remains current. Do not supersede it, do not regenerate the bundle, and do not rerun a lane.
 
-2. **Patch only plan docs for valid hardening suggestions**
-   - Incorporate small, risk-reducing clarifications (e.g. exact propagation seam, nested error-shape gate, serialization round-trip caveat, single owner for duplicate toast suppression).
+2. **Patch only plan docs, and only for predicate-satisfying hardening suggestions**
+   - Incorporate a small, risk-reducing clarification when leaving it out could cause unsafe implementation or force the implementer to invent material behavior (e.g. exact propagation seam, nested error-shape gate, serialization round-trip caveat, single owner for duplicate toast suppression).
+   - Wording preference, readability, and optional polish are parked, not patched.
    - Do not start implementation just because the reviewer named source files.
 
 3. **Regenerate a fresh immutable bundle**
