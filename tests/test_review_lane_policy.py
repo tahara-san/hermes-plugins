@@ -2,8 +2,10 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+ALL_SKILLS = ROOT / "skills"
 SKILLS = ROOT / "skills" / "software-development"
-CLAUDE_I = ROOT / "skills" / "autonomous-ai-agents" / "claude-i" / "SKILL.md"
+CLAUDE_I_DIR = ROOT / "skills" / "autonomous-ai-agents" / "claude-i"
+CLAUDE_I = CLAUDE_I_DIR / "SKILL.md"
 
 INTERACTIVE_CODEX_CONTRACT_FILES = [
     SKILLS / "plan-issues" / "SKILL.md",
@@ -67,6 +69,59 @@ DEPRECATED_CODEX_LABELS = re.compile(
     r"codex-style|codex cli process|async codex|codex delegate",
     re.IGNORECASE,
 )
+
+# `--fallback-model` is documented by Claude Code as "only works with --print".
+# The interactive `claude-i` lane forbids print mode, so the flag can never
+# deliver the promised fallback and must not appear in published skills.
+PRINT_ONLY_FALLBACK_FLAG = "--fallback-model"
+
+AUTOMATIC_FALLBACK_CLAIM = re.compile(
+    r"automatic[a-z]*[^.\n]{0,80}\bopus\b|\bopus\b[^.\n]{0,40}automatic",
+    re.IGNORECASE,
+)
+
+FABLE_PRIMARY_COMMAND = "claude --model fable --effort xhigh"
+OPUS_FALLBACK_COMMAND = "claude --model opus --effort xhigh"
+
+PRINT_MODE_MENTION = re.compile(r"claude\s+-p\b|`?--print`?", re.IGNORECASE)
+
+PRINT_MODE_COMMAND = re.compile(
+    r"\s*(?:\$\s*)?claude\s+(?:[^\n]*\s)?(?:-p|--print)\b",
+    re.IGNORECASE,
+)
+
+# The files that define the interactive Fable -> Opus review-model policy in full.
+AUTHORITATIVE_CLAUDE_MODEL_POLICY_FILES = [
+    CLAUDE_I,
+    CLAUDE_I_DIR / "references" / "read-only-fable5-plan-mode-review.md",
+    SKILLS / "planning-workflows" / "SKILL.md",
+    SKILLS
+    / "planning-workflows"
+    / "references"
+    / "plan-code-opus-review-limit-and-rerun.md",
+]
+
+# Every file that restates the policy and must stay consistent with it.
+INTERACTIVE_CLAUDE_MODEL_POLICY_FILES = AUTHORITATIVE_CLAUDE_MODEL_POLICY_FILES + [
+    SKILLS / "planning-workflows" / "references" / "plan-doc" / "plan-doc.md",
+    SKILLS / "planning-workflows" / "references" / "plan-code" / "plan-code.md",
+]
+
+
+def _all_skill_markdown() -> list[Path]:
+    return sorted(ALL_SKILLS.rglob("*.md"))
+
+
+def _fenced_lines(path: Path) -> list[tuple[int, str]]:
+    lines: list[tuple[int, str]] = []
+    fenced = False
+    for line_number, line in enumerate(path.read_text().splitlines(), start=1):
+        if line.lstrip().startswith("```"):
+            fenced = not fenced
+            continue
+        if fenced:
+            lines.append((line_number, line))
+    return lines
 
 
 def _all_planning_markdown() -> list[Path]:
@@ -254,6 +309,82 @@ def test_plan_issues_rerounds_are_current_only_and_cap_at_four_rounds():
         content = path.read_text().lower()
         assert "four total review rounds" in content, path
         assert "ask the user to decide" in content, path
+
+
+def test_active_skills_never_use_print_only_fallback_model_flag():
+    violations = [
+        f"{path.relative_to(ROOT)}:{line_number}: {line.strip()}"
+        for path in _all_skill_markdown()
+        for line_number, line in enumerate(path.read_text().splitlines(), start=1)
+        if PRINT_ONLY_FALLBACK_FLAG in line
+    ]
+
+    assert not violations, "\n".join(violations)
+
+
+def test_active_skills_do_not_claim_automatic_interactive_opus_fallback():
+    violations = [
+        f"{path.relative_to(ROOT)}:{line_number}: {line.strip()}"
+        for path in _all_skill_markdown()
+        for line_number, line in enumerate(path.read_text().splitlines(), start=1)
+        if AUTOMATIC_FALLBACK_CLAIM.search(line)
+    ]
+
+    assert not violations, "\n".join(violations)
+
+
+def test_interactive_claude_lane_defines_both_explicit_model_commands():
+    for path in INTERACTIVE_CLAUDE_MODEL_POLICY_FILES:
+        content = path.read_text()
+        assert FABLE_PRIMARY_COMMAND in content, path
+        assert OPUS_FALLBACK_COMMAND in content, path
+
+
+def test_interactive_claude_fallback_is_an_explicit_fresh_session_procedure():
+    for path in INTERACTIVE_CLAUDE_MODEL_POLICY_FILES:
+        content = path.read_text().lower()
+        assert "no automatic model fallback" in content, path
+        assert "fresh interactive" in content, path
+        assert "same immutable" in content or "same bundle" in content, path
+
+
+def test_interactive_claude_lane_records_the_actual_model_banner():
+    for path in INTERACTIVE_CLAUDE_MODEL_POLICY_FILES:
+        content = path.read_text().lower()
+        assert "banner" in content, path
+        assert "before the substantive prompt" in content or (
+            "before sending the substantive" in content
+        ), path
+        assert "actually performed the review" in content or (
+            "actual banner/model" in content
+        ), path
+
+
+def test_interactive_claude_fallback_fails_closed_without_a_waiver():
+    for path in AUTHORITATIVE_CLAUDE_MODEL_POLICY_FILES:
+        content = path.read_text().lower()
+        assert "fail closed" in content, path
+        assert "waive" in content or "override" in content, path
+
+
+def test_interactive_claude_fallback_keeps_print_mode_prohibited():
+    for path in INTERACTIVE_CLAUDE_MODEL_POLICY_FILES:
+        assert PRINT_MODE_MENTION.search(path.read_text()), path
+
+    violations = [
+        f"{path.relative_to(ROOT)}:{line_number}: {line.strip()}"
+        for path in _all_skill_markdown()
+        for line_number, line in _fenced_lines(path)
+        if PRINT_MODE_COMMAND.match(line)
+    ]
+
+    assert not violations, "\n".join(violations)
+
+
+def test_interactive_claude_fallback_preserves_parallel_lane_contract():
+    contract = "before waiting on or adjudicating the companion"
+    for path in INTERACTIVE_CLAUDE_MODEL_POLICY_FILES:
+        assert contract in path.read_text().lower(), path
 
 
 def test_recovery_references_do_not_reinstate_delegated_codex_lane():

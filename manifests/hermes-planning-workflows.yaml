@@ -1,5 +1,5 @@
 name: hermes-planning-workflows
-version: 0.3.0
+version: 0.3.1
 description: Contract-first planning with dependency-ordered tasks and one task-local parallel review pair at a time.
 repository: https://github.com/tahara-san/hermes-plugins
 skills:
