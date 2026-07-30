@@ -37,10 +37,11 @@ Applying an optional suggestion is not free: it mutates judged bytes, stales the
 - One lane adds two documentation-accuracy notes and a suggestion to add another assertion to an already adequately covered path.
 - Correct behavior: record both notes as `ADVISORY` with dispositions (`accept-no-action` or `park-follow-up`) in the round ledger, change no judged bytes, and close the phase. Do not regenerate the bundle. Do not rerun either lane.
 
-**Suspected misclassification:**
+**Mixed substantive verdict:**
 
-- A required lane returns `CHANGES_REQUIRED` on a finding that fails the blocker predicate.
-- Correct behavior: verify against the allowed evidence, save the adjudication, change no judged bytes, run **one** bounded same-byte clarification rerun of that lane citing the policy, and keep the companion lane's PASS current. If it still returns `CHANGES_REQUIRED`, stop and escalate to the user rather than negotiating in the old session or overriding the verdict.
+- When exactly one ordinary lane passes, keep judged bytes fixed and ask the **passing lane** to **meta-review** the **failing lane** on the same digest using only `UPHOLD` (agree) or `OBJECT` (dispute).
+- Passing-lane `UPHOLD` preserves the failure for remediation and the **next dual-lane round**. Passing-lane `OBJECT` is sent to the failing lane; its `UPHOLD` retains the failure, while its `OBJECT` withdraws the failure, normalizes that lane to PASS, and approves the same bundle.
+- Preserve compact meta-review opinions/findings as next-round context when unresolved. Meta-reviews do not count toward the **six dual-lane review rounds**. If round six does not approve the gate, stop before round seven and **ask the user to decide** how to proceed. No aggregate or orchestrator override is allowed.
 
 **Process failure (never parked):**
 
@@ -59,7 +60,7 @@ If a tool-call/resource limit stops the session before the blocker loop is close
 - implementation/verification commands that actually passed;
 - exact unresolved **blocking** reviewer finding and its stable finding ID;
 - parked findings and their dispositions, so the next session does not re-litigate them;
-- the running bundle-mutating remediation count and convergence-mode status;
+- the ordinary dual-lane round count, meta-review event count, process-retry count, and whether the round-six user-decision checkpoint was reached;
 - exact next steps to resume.
 
 Never imply completion just because most gates passed. Equally, never imply a phase is incomplete because an advisory list is non-empty.

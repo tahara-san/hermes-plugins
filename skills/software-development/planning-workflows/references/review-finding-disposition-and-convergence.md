@@ -4,7 +4,7 @@ Use this reference for every `plan-doc`, `plan-code`, `plan-issues`, and review-
 
 The intended endpoint is **controlled residual risk with auditable disposition**, not a literal zero-findings verdict. A stronger reviewer can always find another worthwhile improvement; without a materiality threshold, stable finding identity, and a round budget, the workflow converts every newly surfaced detail into a mandatory local objective and loses the task-level goal.
 
-This reference does not weaken any existing guarantee. Exact-byte bundle identity, digest checks, model/effort attestation, raw pane capture, normalized verdicts, read-only scope, parallel lane launch, task-scoped cleanup, and the fail-closed rule that **any mandatory non-PASS lane blocks the gate** all remain in force.
+This reference does not weaken any existing guarantee. Exact-byte bundle identity, digest checks, model/effort attestation, raw pane capture, normalized verdicts, read-only scope, parallel lane launch, task-scoped cleanup, and fail-closed process handling all remain in force. A substantive mixed verdict can close only through the reviewer-to-reviewer meta-review chain below; the orchestrator and aggregate never override a lane.
 
 ## 1. Two independent dimensions
 
@@ -144,19 +144,20 @@ Every reviewer prompt (Codex interactive TUI lane and Claude Code `claude-i` lan
 
 Advisories are preserved in the artifact but must not cause judged-byte mutation or a gate rerun.
 
-## 7. Preserving mandatory PASS without endless churn
+## 7. Mixed-verdict reviewer reconciliation
 
-The orchestrator must **never** override a mandatory lane's `CHANGES_REQUIRED` in the aggregate artifact. When a required lane appears to have misclassified a non-blocking finding as a blocker:
+The orchestrator must **never** override a mandatory lane's `CHANGES_REQUIRED` in the aggregate artifact. When one ordinary lane returns `PASS` and the other returns `CHANGES_REQUIRED`, keep the exact bundle immutable and reconcile reviewer-to-reviewer:
 
-1. Verify the claim against the allowed bundle/source evidence.
-2. Save a disposition explaining precisely which element of the blocker predicate fails.
-3. **Do not change judged bytes.**
-4. Launch **one** fresh, bounded, same-byte clarification rerun of that required lane, citing the policy and the source-grounded evidence. Do not negotiate repeatedly inside the old reviewer session; the old session is stale context, not an adjudication forum.
-5. Require a fresh qualifying `PASS` from that lane against the unchanged bundle.
-6. Keep the companion lane's existing `PASS` current, because the reviewed bytes did not change.
-7. If the lane still returns `CHANGES_REQUIRED`, **stop and escalate to the user**. Do not negotiate indefinitely and do not silently override.
+1. Ask the **passing lane** to meta-review the **failing lane** verdict, findings, and evidence against the same digest.
+2. Meta-review verdicts are exactly **`UPHOLD`** (agree with the prior verdict being assessed) or **`OBJECT`** (dispute it). Preserve the opinion and findings with the verdict.
+3. If the passing lane returns `UPHOLD`, the failing verdict stands. Preserve useful reconciliation context, remediate confirmed blockers when needed, and proceed to the **next dual-lane round**.
+4. If the passing lane returns `OBJECT`, send that meta-review to the failing lane for a second same-digest meta-review.
+5. If the failing lane returns `UPHOLD`, it retains `CHANGES_REQUIRED`; preserve both opinions and proceed to the next dual-lane round.
+6. If the failing lane returns `OBJECT`, it withdraws its original `CHANGES_REQUIRED`; normalize that lane to `PASS` and close the current bundle as both lanes passing.
 
-A same-byte clarification rerun is not a remediation round (section 10).
+Meta-reviews are sequential because the second consumes the first, but they stay bound to the immutable digest and retain the pinned lane model/effort attestations. Process-invalid, unavailable, malformed, wrong-digest, or wrong-model lanes remain `BLOCKED_PROCESS`; they do not enter substantive reconciliation.
+
+Limit each gate to **six dual-lane review rounds**. Meta-reviews do not count as dual-lane rounds. If the gate has not passed after round six, stop before round seven and **ask the user to decide** how to proceed. The limit is not auto-approval and never waives a real blocker.
 
 ## 8. Judged-product plane vs review-evidence plane
 
@@ -190,20 +191,18 @@ A parked follow-up issue is evidence-plane by default: it records future work, m
 
 ## 9. Convergence controls
 
-### 9a. Bundle-mutating remediation budget
+### 9a. Ordinary dual-lane round budget
 
-Default to **no more than three bundle-mutating remediation rounds per gate** before entering convergence mode. The budget is not auto-approval and never waives a real blocker.
+Default to **six dual-lane review rounds per gate**, including the initial ordinary round and every later ordinary pair. Meta-reviews do not count toward this limit, nor do fail-closed process retries that never produce a substantive verdict. The budget is not auto-approval and never waives a real blocker.
 
-**Convergence mode:**
+After an unresolved ordinary round:
 
 - stop applying optional improvements;
-- disable broad unrelated simplify edits;
 - deduplicate by stable finding ID;
-- review only blocker fixes and semantically affected scope under the existing delta protocol;
-- require any new late blocker to state its concrete material failure plus its relation to changed bytes, an explicit task/repository contract, or a material safety invariant inside the reviewed scope;
-- park new low-materiality findings automatically under this policy;
-- if a material blocker remains, fix it and review it;
-- if the gate cannot converge after **one** bounded additional blocker round, stop with an explicit user escalation instead of running autonomously for days.
+- restrict remediation/review scope to blocker closure plus semantically affected scope;
+- carry compact mixed-verdict meta-review opinions/findings into the next dual-lane round when present;
+- keep late material defects blocking;
+- after the sixth unresolved ordinary round, stop before round seven and ask the user to decide rather than continuing autonomously.
 
 A late **critical** finding is still blocking. The budget never suppresses a real security, data-integrity, or correctness failure.
 
@@ -253,18 +252,18 @@ Low-risk phases with adequate focused verification may be grouped into **one sta
 
 ## 10. Convergence accounting
 
-Each gate keeps a round ledger in the review-evidence plane recording, per round:
+Each gate keeps a round ledger in the review-evidence plane recording, per event:
 
-- `round_id` and `coverage`: `full` | `delta` | `same-byte-clarification` | `process-retry`;
+- `round_id` and `coverage`: `full` | `delta` | `meta-review` | `process-retry`;
 - bundle path, digest, bytes, lines, input count;
-- lane states (`QUALIFYING` / `BLOCKED_PROCESS`) and verdicts;
+- lane states (`QUALIFYING` / `BLOCKED_PROCESS`) and ordinary/meta verdicts;
 - novel finding IDs vs duplicates;
 - dispositions applied;
-- whether judged bytes changed (this is what makes a round *bundle-mutating*);
-- running `bundle_mutating_remediation_count`;
-- convergence-mode status.
+- whether judged bytes changed;
+- running ordinary `dual_lane_review_round_count` (meta-reviews do not increment it);
+- reconciliation roles/opinions and escalation status.
 
-Enter convergence mode when `bundle_mutating_remediation_count` reaches the configured budget. Stop and escalate rather than continuing autonomous optional churn.
+Stop and ask the user to decide when `dual_lane_review_round_count` reaches six without approval; do not start round seven.
 
 ## 11. Migration behavior
 
@@ -283,10 +282,10 @@ Enter convergence mode when `bundle_mutating_remediation_count` reaches the conf
 
 - Treating a reviewer's `worth_addressing` / `NON_BLOCKING` list as a mandatory work queue.
 - Converting a `BLOCKED_PROCESS` lane into an advisory or parking it.
-- Letting an aggregate artifact declare PASS while a required lane says `CHANGES_REQUIRED`.
-- Negotiating with a reviewer inside its old session instead of running one bounded same-byte clarification rerun.
+- Letting an aggregate artifact declare PASS while a required lane still says `CHANGES_REQUIRED` without a complete passing-lane `OBJECT` then failing-lane `OBJECT` reconciliation chain.
+- Treating an orchestrator adjudication as reviewer consent instead of recording the required same-digest meta-review.
 - Editing judged bytes just to write down a parking rationale.
 - Re-reviewing generated gate artifacts substantively when no judged byte changed.
-- Counting a same-byte clarification or a schema-recovery retry against the bundle-mutating remediation budget.
+- Counting a meta-review or schema-recovery retry as an ordinary dual-lane review round.
 - Using the budget to suppress a late critical security/data-integrity/correctness finding.
 - Creating a new finding ID for a reworded repeat, which inflates the novel-finding count and prevents convergence.

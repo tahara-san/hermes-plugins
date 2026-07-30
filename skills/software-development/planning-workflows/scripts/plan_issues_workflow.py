@@ -38,6 +38,11 @@ _REQUIRED_LANES = ("codex", "claude")
 _CLOSED_STATES = {"approved", "waived", "blocked_authorized"}
 _LIVE_DOC_NAMES = ("spec.md", "todo.md", "task-metadata.json")
 _DIGEST = re.compile(r"^[0-9a-f]{64}$")
+_META_REVIEW_STAGES = {
+    "passing-lane-assessment": "PASSING_LANE_ASSESSMENT",
+    "failing-lane-reconsideration": "FAILING_LANE_RECONSIDERATION",
+}
+_META_REVIEW_VERDICTS = {"UPHOLD", "OBJECT"}
 _DEPENDENCY_CONTRACT_MAX_BYTES = 16_384
 _PLAN_PATH = re.compile(r"`(?P<path>[^`\n]+)`")
 _REVIEW_ATTESTATIONS = {
@@ -434,7 +439,7 @@ def initialize_conversion(
     tasks_root: Path | str,
     definitions: Sequence[Mapping[str, Any]],
     *,
-    max_rounds: int = 4,
+    max_rounds: int = 6,
 ) -> dict[str, Any]:
     """Create all task shells only after the complete graph passes validation."""
 
@@ -485,6 +490,7 @@ def initialize_conversion(
                 else "Wait for the current task to close."
             ),
             "failed_rounds": 0,
+            "reconciliation": None,
             "superseded_reviews": [],
         }
 
@@ -727,6 +733,16 @@ def _ensure_current_task(status: Mapping[str, Any], slug: str) -> None:
         )
 
 
+def _compact_meta_context(record: Mapping[str, Any] | None) -> dict[str, Any] | None:
+    if not record:
+        return None
+    return {
+        "verdict": record.get("verdict"),
+        "opinion": record.get("opinion"),
+        "findings": list(record.get("findings") or []),
+    }
+
+
 def build_review_bundle(
     tasks_root: Path | str,
     slug: str | None,
@@ -754,6 +770,10 @@ def build_review_bundle(
         raise WorkflowError(
             "review round cap reached; stop and request a user decision before any further review"
         )
+    if entry["state"] in {"meta_review_pending", "meta_reconsideration_pending"}:
+        raise WorkflowError(
+            "current same-digest meta-review must complete before regenerating the review bundle"
+        )
     if current_bundle:
         _validate_bundle_integrity(root, slug, current_bundle)
         if current_reviews:
@@ -765,7 +785,11 @@ def build_review_bundle(
                 raise WorkflowError(
                     "aggregate both current-bundle results before regenerating"
                 )
-        if current_live_digest == current_bundle.get("live_docs_digest"):
+        unresolved_reconciliation = bool(entry.get("reconciliation"))
+        if (
+            current_live_digest == current_bundle.get("live_docs_digest")
+            and not unresolved_reconciliation
+        ):
             raise WorkflowError(
                 "authoritative docs must change after consolidated blockers before reround"
             )
@@ -806,6 +830,19 @@ def build_review_bundle(
             "removed_evidence": sorted(set(previous_manifest) - set(current_manifest)),
             "consolidated_blockers": [entry["blocker"]] if entry.get("blocker") else [],
         }
+        reconciliation = entry.get("reconciliation") or {}
+        if reconciliation:
+            review_context["prior_reconciliation"] = {
+                "bundle_digest": reconciliation.get("bundle_digest"),
+                "passing_lane": reconciliation.get("passing_lane"),
+                "failing_lane": reconciliation.get("failing_lane"),
+                "passing_assessment": _compact_meta_context(
+                    reconciliation.get("passing_assessment")
+                ),
+                "failing_reconsideration": _compact_meta_context(
+                    reconciliation.get("failing_reconsideration")
+                ),
+            }
 
     lines = [
         f"# Immutable plan review bundle: {slug} v{version}",
@@ -830,6 +867,28 @@ def build_review_bundle(
                 "",
             ]
         )
+        reconciliation_context = review_context.get("prior_reconciliation")
+        if reconciliation_context:
+            lines.extend(
+                [
+                    "## Prior mixed-verdict meta-review",
+                    "",
+                    f"- Prior bundle digest: `{reconciliation_context['bundle_digest']}`",
+                    f"- Passing lane: `{reconciliation_context['passing_lane']}`",
+                    f"- Failing lane: `{reconciliation_context['failing_lane']}`",
+                ]
+            )
+            for label, key in (
+                ("Passing-lane assessment", "passing_assessment"),
+                ("Failing-lane reconsideration", "failing_reconsideration"),
+            ):
+                opinion = reconciliation_context.get(key)
+                if not opinion:
+                    continue
+                lines.append(f"- {label}: {opinion['verdict']} — {opinion['opinion']}")
+                for finding in opinion.get("findings", []):
+                    lines.append(f"  - {finding}")
+            lines.append("")
     lines.extend(["## Manifest", ""])
     for item in evidence:
         lines.append(
@@ -882,6 +941,7 @@ def build_review_bundle(
 
     entry["current_bundle"] = sidecar
     entry["reviews"] = {}
+    entry["reconciliation"] = None
     entry["state"] = "reviewing"
     entry["blocker"] = None
     entry["next_action"] = (
@@ -924,6 +984,68 @@ def _parse_review_result(content: str) -> dict[str, str]:
     return fields
 
 
+def _parse_meta_review_result(content: str) -> dict[str, str]:
+    starts = re.findall(r"(?m)^BEGIN_META_REVIEW_RESULT\s*$", content)
+    ends = re.findall(r"(?m)^END_META_REVIEW_RESULT\s*$", content)
+    match = re.search(
+        r"(?s)(?:\A|\n)BEGIN_META_REVIEW_RESULT\s*\n(.*?)\n"
+        r"END_META_REVIEW_RESULT\s*\Z",
+        content,
+    )
+    if len(starts) != 1 or len(ends) != 1 or match is None:
+        raise WorkflowError(
+            "meta-reviewer artifact must contain exactly one meta-review result block"
+        )
+
+    allowed = {
+        "BUNDLE_SHA256",
+        "REVIEWER_MODE",
+        "MODEL",
+        "EFFORT",
+        "STAGE",
+        "VERDICT",
+    }
+    fields: dict[str, str] = {}
+    for line in match.group(1).splitlines():
+        if not line.strip():
+            continue
+        if ":" not in line:
+            raise WorkflowError("meta-review result block contains a malformed field")
+        key, value = (part.strip() for part in line.split(":", 1))
+        if key not in allowed or key in fields or not value:
+            raise WorkflowError(
+                "meta-review result block contains unknown, duplicate, or empty fields"
+            )
+        fields[key] = value
+    if set(fields) != allowed:
+        raise WorkflowError("meta-review result block is missing required fields")
+    return fields
+
+
+def _read_raw_review_artifact(
+    root: Path, slug: str, reviewer_artifact: Path | str
+) -> tuple[Path, str]:
+    raw_path = Path(reviewer_artifact)
+    path = (
+        raw_path.resolve()
+        if raw_path.is_absolute()
+        else (root.parent / raw_path).resolve()
+    )
+    artifact_root = (root / slug / "reviews" / "raw").resolve()
+    try:
+        path.relative_to(artifact_root)
+    except ValueError as exc:
+        raise WorkflowError(
+            f"reviewer artifact must be under {artifact_root}: {reviewer_artifact}"
+        ) from exc
+    if path.is_symlink() or not path.is_file():
+        raise WorkflowError(f"reviewer artifact is missing or unsafe: {path}")
+    try:
+        return path, path.read_text(errors="strict")
+    except (OSError, UnicodeError) as exc:
+        raise WorkflowError(f"reviewer artifact cannot be read safely: {path}") from exc
+
+
 def _validate_review_attestation(
     root: Path,
     slug: str,
@@ -947,26 +1069,7 @@ def _validate_review_attestation(
             raise WorkflowError(
                 f"{lane} reviewer attestation requires {key}={expected_value}"
             )
-    raw_path = Path(reviewer_artifact)
-    path = (
-        raw_path.resolve()
-        if raw_path.is_absolute()
-        else (root.parent / raw_path).resolve()
-    )
-    artifact_root = (root / slug / "reviews" / "raw").resolve()
-    try:
-        path.relative_to(artifact_root)
-    except ValueError as exc:
-        raise WorkflowError(
-            f"reviewer artifact must be under {artifact_root}: {reviewer_artifact}"
-        ) from exc
-    if path.is_symlink() or not path.is_file():
-        raise WorkflowError(f"reviewer artifact is missing or unsafe: {path}")
-
-    try:
-        content = path.read_text(errors="strict")
-    except (OSError, UnicodeError) as exc:
-        raise WorkflowError(f"reviewer artifact cannot be read safely: {path}") from exc
+    path, content = _read_raw_review_artifact(root, slug, reviewer_artifact)
     fields = _parse_review_result(content)
     expected_fields = {
         "BUNDLE_SHA256": bundle_digest,
@@ -984,6 +1087,161 @@ def _validate_review_attestation(
         "reviewer_artifact_digest": _sha256_bytes(path.read_bytes()),
         **supplied,
     }
+
+
+def _validate_meta_review_attestation(
+    root: Path,
+    slug: str,
+    *,
+    lane: str,
+    bundle_digest: str,
+    stage: str,
+    verdict: str,
+    reviewer_artifact: Path | str,
+    reviewer_mode: str,
+    model: str,
+    effort: str,
+) -> dict[str, str]:
+    expected = _REVIEW_ATTESTATIONS[lane]
+    supplied = {
+        "reviewer_mode": reviewer_mode,
+        "model": model,
+        "effort": effort,
+    }
+    for key, expected_value in expected.items():
+        if supplied[key] != expected_value:
+            raise WorkflowError(
+                f"{lane} meta-reviewer attestation requires {key}={expected_value}"
+            )
+    path, content = _read_raw_review_artifact(root, slug, reviewer_artifact)
+    fields = _parse_meta_review_result(content)
+    expected_fields = {
+        "BUNDLE_SHA256": bundle_digest,
+        "REVIEWER_MODE": reviewer_mode,
+        "MODEL": model,
+        "EFFORT": effort,
+        "STAGE": _META_REVIEW_STAGES[stage],
+        "VERDICT": verdict,
+    }
+    if fields != expected_fields:
+        raise WorkflowError(
+            "meta-review result block does not exactly match the recorded result"
+        )
+    return {
+        "reviewer_artifact": _relative(path, root.parent),
+        "reviewer_artifact_digest": _sha256_bytes(path.read_bytes()),
+        **supplied,
+    }
+
+
+def _validate_ordinary_review_record(
+    root: Path,
+    slug: str,
+    lane: str,
+    review: Mapping[str, Any],
+    bundle_digest: str,
+) -> None:
+    required_review_fields = {
+        "task",
+        "lane",
+        "bundle_digest",
+        "verdict",
+        "blockers",
+        "superseded",
+        "reviewer_artifact",
+        "reviewer_artifact_digest",
+        "reviewer_mode",
+        "model",
+        "effort",
+    }
+    if (
+        not required_review_fields.issubset(review)
+        or review.get("task") != slug
+        or review.get("lane") != lane
+        or review.get("bundle_digest") != bundle_digest
+        or review.get("superseded") is not False
+        or review.get("verdict") not in {"APPROVED", "CHANGES_REQUIRED"}
+    ):
+        raise WorkflowError(f"saved {lane} review does not match the aggregate")
+    _validate_ordinary_verdict_blockers(str(review["verdict"]), review["blockers"])
+    attestation = _validate_review_attestation(
+        root,
+        slug,
+        lane=lane,
+        bundle_digest=str(review["bundle_digest"]),
+        verdict=str(review["verdict"]),
+        reviewer_artifact=str(review["reviewer_artifact"]),
+        reviewer_mode=str(review["reviewer_mode"]),
+        model=str(review["model"]),
+        effort=str(review["effort"]),
+    )
+    if attestation["reviewer_artifact_digest"] != review.get(
+        "reviewer_artifact_digest"
+    ):
+        raise WorkflowError(f"saved {lane} reviewer artifact was modified")
+
+
+def _validate_ordinary_verdict_blockers(verdict: str, blockers: Any) -> list[str]:
+    if isinstance(blockers, (str, bytes)) or not isinstance(blockers, Sequence):
+        raise WorkflowError("ordinary review blockers must be a sequence of findings")
+    normalized = [str(blocker).strip() for blocker in blockers]
+    if any(not blocker for blocker in normalized):
+        raise WorkflowError("ordinary review blockers must not contain empty findings")
+    if verdict == "CHANGES_REQUIRED" and not normalized:
+        raise WorkflowError("CHANGES_REQUIRED ordinary review must include a blocker")
+    if verdict == "APPROVED" and normalized:
+        raise WorkflowError("APPROVED ordinary review must not include blockers")
+    return normalized
+
+
+def _validate_meta_review_record(
+    root: Path,
+    slug: str,
+    record: Mapping[str, Any],
+    *,
+    lane: str,
+    stage: str,
+    bundle_digest: str,
+) -> None:
+    required_fields = {
+        "task",
+        "lane",
+        "bundle_digest",
+        "stage",
+        "verdict",
+        "opinion",
+        "findings",
+        "reviewer_artifact",
+        "reviewer_artifact_digest",
+        "reviewer_mode",
+        "model",
+        "effort",
+    }
+    if (
+        not required_fields.issubset(record)
+        or record.get("task") != slug
+        or record.get("lane") != lane
+        or record.get("bundle_digest") != bundle_digest
+        or record.get("stage") != stage
+        or record.get("verdict") not in _META_REVIEW_VERDICTS
+    ):
+        raise WorkflowError("saved meta-review does not match the reconciliation chain")
+    attestation = _validate_meta_review_attestation(
+        root,
+        slug,
+        lane=lane,
+        bundle_digest=bundle_digest,
+        stage=stage,
+        verdict=str(record["verdict"]),
+        reviewer_artifact=str(record["reviewer_artifact"]),
+        reviewer_mode=str(record["reviewer_mode"]),
+        model=str(record["model"]),
+        effort=str(record["effort"]),
+    )
+    if attestation["reviewer_artifact_digest"] != record.get(
+        "reviewer_artifact_digest"
+    ):
+        raise WorkflowError("saved meta-reviewer artifact was modified")
 
 
 def _validate_aggregate_evidence(
@@ -1011,58 +1269,152 @@ def _validate_aggregate_evidence(
     if aggregate.get("task") != slug:
         raise WorkflowError("aggregate task identity does not match")
     _validate_bundle_integrity(root, slug, aggregate)
+    bundle_digest = str(aggregate["bundle_digest"])
     lanes = aggregate.get("lanes")
     if not isinstance(lanes, Mapping) or set(lanes) != set(_REQUIRED_LANES):
         raise WorkflowError("aggregate must contain exactly both required review lanes")
-    if status_reviews is not None and dict(lanes) != dict(status_reviews):
-        raise WorkflowError("aggregate lanes do not match saved review results")
 
-    blocking: list[str] = []
-    changes_required = False
-    for lane in _REQUIRED_LANES:
-        review = lanes[lane]
-        required_review_fields = {
-            "task",
-            "lane",
+    reconciliation = aggregate.get("reconciliation")
+    expected_state: str
+    evidence_lanes: Mapping[str, Any]
+    if reconciliation is None:
+        evidence_lanes = lanes
+        if status_reviews is not None and dict(evidence_lanes) != dict(status_reviews):
+            raise WorkflowError("aggregate lanes do not match saved review results")
+        for lane in _REQUIRED_LANES:
+            review = evidence_lanes[lane]
+            if not isinstance(review, Mapping):
+                raise WorkflowError(f"saved {lane} review does not match the aggregate")
+            _validate_ordinary_review_record(root, slug, lane, review, bundle_digest)
+        blocking = [
+            str(finding)
+            for lane in _REQUIRED_LANES
+            for finding in evidence_lanes[lane].get("blockers", [])
+        ]
+        changes_required = bool(blocking) or any(
+            evidence_lanes[lane]["verdict"] == "CHANGES_REQUIRED"
+            for lane in _REQUIRED_LANES
+        )
+        expected_state = "changes_required" if changes_required else "approved"
+    else:
+        if not isinstance(reconciliation, Mapping):
+            raise WorkflowError("aggregate reconciliation must be an object")
+        required_reconciliation_fields = {
             "bundle_digest",
-            "verdict",
-            "blockers",
-            "superseded",
-            "reviewer_artifact",
-            "reviewer_artifact_digest",
-            "reviewer_mode",
-            "model",
-            "effort",
+            "passing_lane",
+            "failing_lane",
+            "initial_lanes",
+            "passing_assessment",
+            "failing_reconsideration",
         }
         if (
-            not isinstance(review, Mapping)
-            or not required_review_fields.issubset(review)
-            or review.get("task") != slug
-            or review.get("lane") != lane
-            or review.get("bundle_digest") != aggregate.get("bundle_digest")
-            or review.get("superseded") is not False
-            or review.get("verdict") not in {"APPROVED", "CHANGES_REQUIRED"}
+            not required_reconciliation_fields.issubset(reconciliation)
+            or reconciliation.get("bundle_digest") != bundle_digest
         ):
-            raise WorkflowError(f"saved {lane} review does not match the aggregate")
-        attestation = _validate_review_attestation(
-            root,
-            slug,
-            lane=lane,
-            bundle_digest=str(review["bundle_digest"]),
-            verdict=str(review["verdict"]),
-            reviewer_artifact=str(review["reviewer_artifact"]),
-            reviewer_mode=str(review["reviewer_mode"]),
-            model=str(review["model"]),
-            effort=str(review["effort"]),
-        )
-        if attestation["reviewer_artifact_digest"] != review.get(
-            "reviewer_artifact_digest"
+            raise WorkflowError("aggregate reconciliation is incomplete or stale")
+        passing_lane = str(reconciliation["passing_lane"])
+        failing_lane = str(reconciliation["failing_lane"])
+        if (
+            {passing_lane, failing_lane} != set(_REQUIRED_LANES)
+            or aggregate.get("passing_lane") != passing_lane
+            or aggregate.get("failing_lane") != failing_lane
         ):
-            raise WorkflowError(f"saved {lane} reviewer artifact was modified")
-        blocking.extend(str(item) for item in review.get("blockers", []))
-        changes_required = changes_required or review["verdict"] == "CHANGES_REQUIRED"
+            raise WorkflowError("aggregate reconciliation lane roles do not match")
+        evidence_lanes = reconciliation["initial_lanes"]
+        if not isinstance(evidence_lanes, Mapping) or set(evidence_lanes) != set(
+            _REQUIRED_LANES
+        ):
+            raise WorkflowError(
+                "reconciliation must preserve both initial lane results"
+            )
+        if status_reviews is not None and dict(evidence_lanes) != dict(status_reviews):
+            raise WorkflowError(
+                "reconciliation lanes do not match saved review results"
+            )
+        for lane in _REQUIRED_LANES:
+            review = evidence_lanes[lane]
+            if not isinstance(review, Mapping):
+                raise WorkflowError(f"saved {lane} review does not match the aggregate")
+            _validate_ordinary_review_record(root, slug, lane, review, bundle_digest)
+        if (
+            evidence_lanes[passing_lane]["verdict"] != "APPROVED"
+            or evidence_lanes[failing_lane]["verdict"] != "CHANGES_REQUIRED"
+        ):
+            raise WorkflowError(
+                "reconciliation requires exactly one passing and one failing lane"
+            )
 
-    expected_state = "changes_required" if blocking or changes_required else "approved"
+        passing_assessment = reconciliation.get("passing_assessment")
+        failing_reconsideration = reconciliation.get("failing_reconsideration")
+        if passing_assessment is None:
+            if failing_reconsideration is not None:
+                raise WorkflowError(
+                    "failing lane cannot reconsider before passing-lane assessment"
+                )
+            expected_state = "meta_review_pending"
+        else:
+            if not isinstance(passing_assessment, Mapping):
+                raise WorkflowError("passing-lane assessment must be an object")
+            _validate_meta_review_record(
+                root,
+                slug,
+                passing_assessment,
+                lane=passing_lane,
+                stage="passing-lane-assessment",
+                bundle_digest=bundle_digest,
+            )
+            if passing_assessment["verdict"] == "UPHOLD":
+                if failing_reconsideration is not None:
+                    raise WorkflowError(
+                        "failing-lane reconsideration is invalid after an UPHOLD assessment"
+                    )
+                expected_state = "changes_required"
+            elif failing_reconsideration is None:
+                expected_state = "meta_reconsideration_pending"
+            else:
+                if not isinstance(failing_reconsideration, Mapping):
+                    raise WorkflowError(
+                        "failing-lane reconsideration must be an object"
+                    )
+                _validate_meta_review_record(
+                    root,
+                    slug,
+                    failing_reconsideration,
+                    lane=failing_lane,
+                    stage="failing-lane-reconsideration",
+                    bundle_digest=bundle_digest,
+                )
+                expected_state = (
+                    "approved"
+                    if failing_reconsideration["verdict"] == "OBJECT"
+                    else "changes_required"
+                )
+
+        if expected_state == "approved":
+            for lane in _REQUIRED_LANES:
+                normalized = dict(evidence_lanes[lane])
+                normalized["verdict"] = "APPROVED"
+                normalized["blockers"] = []
+                if dict(lanes[lane]) != normalized:
+                    raise WorkflowError(
+                        "approved reconciliation must normalize both lanes to APPROVED"
+                    )
+        elif dict(lanes) != dict(evidence_lanes):
+            raise WorkflowError(
+                "unresolved reconciliation must preserve the initial lane results"
+            )
+
+    expected_blockers = (
+        []
+        if expected_state == "approved"
+        else [
+            str(finding)
+            for lane in _REQUIRED_LANES
+            for finding in evidence_lanes[lane].get("blockers", [])
+        ]
+    )
+    if aggregate.get("blockers") != expected_blockers:
+        raise WorkflowError("aggregate blockers do not match its lane evidence")
     if aggregate.get("state") != expected_state:
         raise WorkflowError("aggregate state does not match its lane evidence")
     if require_live_docs:
@@ -1131,6 +1483,9 @@ def record_review(
     normalized_verdict = verdict.upper()
     if normalized_verdict not in {"APPROVED", "CHANGES_REQUIRED"}:
         raise WorkflowError(f"unsupported review verdict: {verdict}")
+    normalized_blockers = _validate_ordinary_verdict_blockers(
+        normalized_verdict, list(blockers)
+    )
 
     result = {
         "schema_version": 1,
@@ -1138,7 +1493,7 @@ def record_review(
         "lane": lane,
         "bundle_digest": bundle_digest,
         "verdict": normalized_verdict,
-        "blockers": list(blockers),
+        "blockers": normalized_blockers,
         "non_blocking": list(non_blocking),
         "superseded": False,
     }
@@ -1239,6 +1594,111 @@ def _advance_after_close(status: dict[str, Any], slug: str) -> None:
         )
 
 
+def _aggregate_path(root: Path, slug: str, version: int) -> Path:
+    return root / slug / "reviews" / "aggregates" / f"v{version}.json"
+
+
+def _aggregate_base(
+    bundle: Mapping[str, Any],
+    current_live_digest: str,
+    reviews: Mapping[str, Any],
+) -> dict[str, Any]:
+    blocking = [
+        str(finding)
+        for lane in _REQUIRED_LANES
+        for finding in reviews[lane].get("blockers", [])
+    ]
+    non_blocking = list(
+        dict.fromkeys(
+            str(finding)
+            for lane in _REQUIRED_LANES
+            for finding in reviews[lane].get("non_blocking", [])
+        )
+    )
+    return {
+        "schema_version": 1,
+        "task": bundle["task"],
+        "version": bundle["version"],
+        "bundle_path": bundle["path"],
+        "bundle_digest": bundle["digest"],
+        "bundle_bytes": bundle["bytes"],
+        "evidence_count": bundle["evidence_count"],
+        "manifest": bundle["manifest"],
+        "review_context": bundle.get("review_context", {"coverage": "latest-state"}),
+        "live_docs_digest": current_live_digest,
+        "lanes": {lane: reviews[lane] for lane in _REQUIRED_LANES},
+        "blockers": blocking,
+        "non_blocking": non_blocking,
+    }
+
+
+def _store_aggregate(
+    root: Path,
+    status: dict[str, Any],
+    slug: str,
+    aggregate: dict[str, Any],
+    *,
+    count_failed_round: bool,
+) -> dict[str, Any]:
+    entry = _task_entry(status, slug)
+    _validate_aggregate_evidence(
+        root,
+        slug,
+        aggregate,
+        status_reviews=entry.get("reviews") or {},
+        require_live_docs=True,
+    )
+    _json_write(_aggregate_path(root, slug, int(aggregate["version"])), aggregate)
+
+    state = str(aggregate["state"])
+    entry["state"] = state
+    entry["reconciliation"] = aggregate.get("reconciliation")
+    if state == "changes_required":
+        if count_failed_round:
+            entry["failed_rounds"] = entry.get("failed_rounds", 0) + 1
+        entry["blocker"] = "; ".join(aggregate["blockers"]) or "review changes required"
+        if entry["failed_rounds"] >= status["max_rounds"]:
+            entry["next_action"] = (
+                f"Review round limit reached after {status['max_rounds']} failed rounds; "
+                "stop and ask the user to decide how to proceed. Do not start another "
+                "review round without an explicit user decision."
+            )
+        elif aggregate.get("reconciliation"):
+            entry["next_action"] = (
+                "Preserve the mixed-verdict reconciliation opinions/findings as context, "
+                "address confirmed blockers when needed, then start the next dual-lane "
+                "review round."
+            )
+        else:
+            entry["next_action"] = (
+                "Consolidate all blocker-level findings into one amendment pass; optional "
+                "non-blocking suggestions do not invalidate the bundle."
+            )
+    elif state == "meta_review_pending":
+        entry["blocker"] = None
+        entry["next_action"] = (
+            f"Ask the passing lane {aggregate['passing_lane']} to assess the failing lane "
+            f"{aggregate['failing_lane']} verdict on this exact digest using UPHOLD or OBJECT."
+        )
+    elif state == "meta_reconsideration_pending":
+        entry["blocker"] = None
+        entry["next_action"] = (
+            f"Send the passing lane {aggregate['passing_lane']} OBJECT meta-review to the "
+            f"failing lane {aggregate['failing_lane']} for reconsideration using UPHOLD or OBJECT."
+        )
+    elif state == "approved":
+        entry["blocker"] = None
+        entry["next_action"] = (
+            "Task review closed; proceed only under implementation authorization."
+        )
+        _json_write(root / slug / "reviews" / "final-review.json", aggregate)
+        _advance_after_close(status, slug)
+    else:  # pragma: no cover - aggregate validation rejects unknown states
+        raise WorkflowError(f"unsupported aggregate state: {state}")
+    _persist(root, status)
+    return aggregate
+
+
 def aggregate_reviews(tasks_root: Path | str, slug: str) -> dict[str, Any]:
     root = Path(tasks_root)
     status = _load_current_status(root)
@@ -1248,9 +1708,7 @@ def aggregate_reviews(tasks_root: Path | str, slug: str) -> dict[str, Any]:
     if not bundle:
         raise WorkflowError("no current review bundle exists")
     _validate_bundle_integrity(root, slug, bundle)
-    aggregate_path = (
-        root / slug / "reviews" / "aggregates" / f"v{bundle['version']}.json"
-    )
+    aggregate_path = _aggregate_path(root, slug, int(bundle["version"]))
     if aggregate_path.is_file():
         existing = _json_read(aggregate_path)
         if existing.get("bundle_digest") != bundle.get("digest"):
@@ -1277,22 +1735,9 @@ def aggregate_reviews(tasks_root: Path | str, slug: str) -> dict[str, Any]:
     ):
         raise WorkflowError("review verdict digest does not match the current bundle")
     for lane in _REQUIRED_LANES:
-        review = reviews[lane]
-        attestation = _validate_review_attestation(
-            root,
-            slug,
-            lane=lane,
-            bundle_digest=review["bundle_digest"],
-            verdict=review["verdict"],
-            reviewer_artifact=review["reviewer_artifact"],
-            reviewer_mode=review["reviewer_mode"],
-            model=review["model"],
-            effort=review["effort"],
+        _validate_ordinary_review_record(
+            root, slug, lane, reviews[lane], str(bundle["digest"])
         )
-        if attestation["reviewer_artifact_digest"] != review.get(
-            "reviewer_artifact_digest"
-        ):
-            raise WorkflowError(f"saved {lane} reviewer artifact was modified")
 
     current_live_digest = _live_docs_digest(root / slug)
     if current_live_digest != bundle["live_docs_digest"]:
@@ -1300,71 +1745,225 @@ def aggregate_reviews(tasks_root: Path | str, slug: str) -> dict[str, Any]:
             "live authoritative docs changed after bundle generation; current approval is stale"
         )
 
-    blocking = [
-        finding
-        for lane in _REQUIRED_LANES
-        for finding in reviews[lane].get("blockers", [])
+    aggregate = _aggregate_base(bundle, current_live_digest, reviews)
+    passing = [
+        lane for lane in _REQUIRED_LANES if reviews[lane]["verdict"] == "APPROVED"
     ]
-    non_blocking = list(
-        dict.fromkeys(
-            finding
-            for lane in _REQUIRED_LANES
-            for finding in reviews[lane].get("non_blocking", [])
+    failing = [
+        lane
+        for lane in _REQUIRED_LANES
+        if reviews[lane]["verdict"] == "CHANGES_REQUIRED"
+    ]
+    if len(passing) == 1 and len(failing) == 1:
+        reconciliation = {
+            "bundle_digest": bundle["digest"],
+            "passing_lane": passing[0],
+            "failing_lane": failing[0],
+            "initial_lanes": {lane: reviews[lane] for lane in _REQUIRED_LANES},
+            "passing_assessment": None,
+            "failing_reconsideration": None,
+        }
+        aggregate.update(
+            {
+                "passing_lane": passing[0],
+                "failing_lane": failing[0],
+                "reconciliation": reconciliation,
+                "state": "meta_review_pending",
+            }
         )
+        return _store_aggregate(root, status, slug, aggregate, count_failed_round=False)
+
+    changes_required = bool(aggregate["blockers"]) or bool(failing)
+    aggregate["state"] = "changes_required" if changes_required else "approved"
+    return _store_aggregate(
+        root,
+        status,
+        slug,
+        aggregate,
+        count_failed_round=changes_required,
     )
-    changes_required = bool(blocking) or any(
-        reviews[lane]["verdict"] == "CHANGES_REQUIRED" for lane in _REQUIRED_LANES
+
+
+def record_meta_review(
+    tasks_root: Path | str,
+    slug: str,
+    *,
+    lane: str,
+    bundle_digest: str,
+    stage: str,
+    verdict: str,
+    opinion: str,
+    findings: Iterable[str] = (),
+    reviewer_artifact: Path | str,
+    reviewer_mode: str,
+    model: str,
+    effort: str,
+) -> dict[str, Any]:
+    root = Path(tasks_root)
+    status = _load_current_status(root)
+    entry = _task_entry(status, slug)
+    _ensure_current_task(status, slug)
+    if lane not in _REQUIRED_LANES:
+        raise WorkflowError(f"unsupported review lane: {lane}")
+    if not _DIGEST.fullmatch(bundle_digest):
+        raise WorkflowError("bundle digest must be exactly 64 lowercase hex characters")
+    normalized_stage = stage.strip().lower().replace("_", "-")
+    if normalized_stage not in _META_REVIEW_STAGES:
+        raise WorkflowError(f"unsupported meta-review stage: {stage}")
+    normalized_verdict = verdict.upper()
+    if normalized_verdict not in _META_REVIEW_VERDICTS:
+        raise WorkflowError(f"unsupported meta-review verdict: {verdict}")
+    normalized_opinion = opinion.strip()
+    if not normalized_opinion:
+        raise WorkflowError("meta-review opinion must not be empty")
+
+    bundle = entry.get("current_bundle")
+    if not bundle:
+        raise WorkflowError("no current review bundle exists")
+    _validate_bundle_integrity(root, slug, bundle)
+    if bundle_digest != bundle.get("digest"):
+        raise WorkflowError("meta-review digest does not match the current bundle")
+    reconciliation = entry.get("reconciliation")
+    if not isinstance(reconciliation, Mapping):
+        raise WorkflowError(
+            "current review does not have a mixed-verdict reconciliation"
+        )
+    reconciliation = dict(reconciliation)
+    passing_lane = str(reconciliation["passing_lane"])
+    failing_lane = str(reconciliation["failing_lane"])
+    record_key = (
+        "passing_assessment"
+        if normalized_stage == "passing-lane-assessment"
+        else "failing_reconsideration"
     )
-    aggregate = {
+    if normalized_stage == "passing-lane-assessment":
+        if lane != passing_lane:
+            raise WorkflowError(
+                "only the passing lane may perform the passing-lane assessment"
+            )
+    else:
+        passing_assessment = reconciliation.get("passing_assessment")
+        if (
+            lane != failing_lane
+            or not isinstance(passing_assessment, Mapping)
+            or passing_assessment.get("verdict") != "OBJECT"
+        ):
+            raise WorkflowError(
+                "failing-lane reconsideration requires a passing-lane OBJECT and the original failing lane"
+            )
+
+    result = {
         "schema_version": 1,
         "task": slug,
+        "lane": lane,
+        "bundle_digest": bundle_digest,
+        "stage": normalized_stage,
+        "verdict": normalized_verdict,
+        "opinion": normalized_opinion,
+        "findings": [str(finding) for finding in findings],
         "version": bundle["version"],
-        "bundle_path": bundle["path"],
-        "bundle_digest": bundle["digest"],
-        "bundle_bytes": bundle["bytes"],
-        "evidence_count": bundle["evidence_count"],
-        "manifest": bundle["manifest"],
-        "review_context": bundle.get("review_context", {"coverage": "latest-state"}),
-        "live_docs_digest": current_live_digest,
-        "lanes": {lane: reviews[lane] for lane in _REQUIRED_LANES},
-        "blockers": blocking,
-        "non_blocking": non_blocking,
-        "state": "changes_required" if changes_required else "approved",
     }
+    result.update(
+        _validate_meta_review_attestation(
+            root,
+            slug,
+            lane=lane,
+            bundle_digest=bundle_digest,
+            stage=normalized_stage,
+            verdict=normalized_verdict,
+            reviewer_artifact=reviewer_artifact,
+            reviewer_mode=reviewer_mode,
+            model=model,
+            effort=effort,
+        )
+    )
+    result_path = (
+        root
+        / slug
+        / "reviews"
+        / "meta"
+        / f"v{bundle['version']}-{normalized_stage}-{lane}.json"
+    )
+    stored_result = {**result, "path": _relative(result_path, root)}
+    existing_result = reconciliation.get(record_key)
+    if existing_result is not None:
+        if dict(existing_result) != stored_result:
+            raise WorkflowError(
+                f"conflicting duplicate meta-review for {normalized_stage} on current bundle"
+            )
+        _validate_meta_review_record(
+            root,
+            slug,
+            stored_result,
+            lane=lane,
+            stage=normalized_stage,
+            bundle_digest=bundle_digest,
+        )
+        aggregate = _json_read(_aggregate_path(root, slug, int(bundle["version"])))
+        _validate_aggregate_evidence(
+            root,
+            slug,
+            aggregate,
+            status_reviews=entry.get("reviews") or {},
+            require_live_docs=True,
+        )
+        return aggregate
+
+    expected_state = (
+        "meta_review_pending"
+        if normalized_stage == "passing-lane-assessment"
+        else "meta_reconsideration_pending"
+    )
+    if entry["state"] != expected_state:
+        raise WorkflowError(
+            f"task is not accepting {normalized_stage} in state {entry['state']}"
+        )
+
+    reconciliation[record_key] = stored_result
+    aggregate_path = _aggregate_path(root, slug, int(bundle["version"]))
+    aggregate = _json_read(aggregate_path)
     _validate_aggregate_evidence(
         root,
         slug,
         aggregate,
-        status_reviews=reviews,
+        status_reviews=entry.get("reviews") or {},
         require_live_docs=True,
     )
-    _json_write(aggregate_path, aggregate)
+    aggregate["reconciliation"] = reconciliation
+    aggregate["passing_lane"] = passing_lane
+    aggregate["failing_lane"] = failing_lane
 
-    if changes_required:
-        entry["state"] = "changes_required"
-        entry["failed_rounds"] = entry.get("failed_rounds", 0) + 1
-        entry["blocker"] = "; ".join(blocking) or "review changes required"
-        if entry["failed_rounds"] >= status["max_rounds"]:
-            entry["next_action"] = (
-                f"Review round limit reached after {status['max_rounds']} failed rounds; "
-                "stop and ask the user to decide how to proceed. Do not start another "
-                "review round without an explicit user decision."
-            )
-        else:
-            entry["next_action"] = (
-                "Consolidate all blocker-level findings into one amendment pass; optional "
-                "non-blocking suggestions do not invalidate the bundle."
-            )
-    else:
-        entry["state"] = "approved"
-        entry["blocker"] = None
-        entry["next_action"] = (
-            "Task review closed; proceed only under implementation authorization."
+    if normalized_stage == "passing-lane-assessment":
+        aggregate["state"] = (
+            "changes_required"
+            if normalized_verdict == "UPHOLD"
+            else "meta_reconsideration_pending"
         )
-        _json_write(root / slug / "reviews" / "final-review.json", aggregate)
-        _advance_after_close(status, slug)
-    _persist(root, status)
-    return aggregate
+        count_failed_round = normalized_verdict == "UPHOLD"
+    elif normalized_verdict == "UPHOLD":
+        aggregate["state"] = "changes_required"
+        count_failed_round = True
+    else:
+        aggregate["state"] = "approved"
+        aggregate["blockers"] = []
+        aggregate["lanes"] = {
+            review_lane: {
+                **reconciliation["initial_lanes"][review_lane],
+                "verdict": "APPROVED",
+                "blockers": [],
+            }
+            for review_lane in _REQUIRED_LANES
+        }
+        count_failed_round = False
+
+    _json_write(result_path, stored_result)
+    return _store_aggregate(
+        root,
+        status,
+        slug,
+        aggregate,
+        count_failed_round=count_failed_round,
+    )
 
 
 def mark_blocked(
@@ -1566,6 +2165,7 @@ def _migrated_status(
             entry["state"] = "pending"
             entry["current_bundle"] = None
             entry["reviews"] = {}
+            entry["reconciliation"] = None
             entry["failed_rounds"] = 0
             entry["blocker"] = "Ordering migration requires fresh task-local review."
             entry["next_action"] = (
@@ -1624,7 +2224,7 @@ def adopt_legacy_conversion(
     tasks_root: Path | str,
     definitions: Sequence[Mapping[str, Any]],
     *,
-    max_rounds: int = 4,
+    max_rounds: int = 6,
 ) -> dict[str, Any]:
     """Adopt stable legacy task directories without treating old reviews as current."""
 
@@ -1688,6 +2288,7 @@ def adopt_legacy_conversion(
                 else "Wait for the current task to close."
             ),
             "failed_rounds": 0,
+            "reconciliation": None,
             "superseded_reviews": [],
             "legacy_review_artifacts": historical,
         }
@@ -1716,14 +2317,14 @@ def _parser() -> argparse.ArgumentParser:
     )
     init.add_argument("--tasks-root", type=Path, default=Path("tasks"))
     init.add_argument("--definitions", required=True, help="JSON file or JSON value")
-    init.add_argument("--max-rounds", type=int, default=4)
+    init.add_argument("--max-rounds", type=int, default=6)
 
     adopt = subparsers.add_parser(
         "adopt-legacy", help="transactionally adopt stable legacy task directories"
     )
     adopt.add_argument("--tasks-root", type=Path, default=Path("tasks"))
     adopt.add_argument("--definitions", required=True, help="JSON file or JSON value")
-    adopt.add_argument("--max-rounds", type=int, default=4)
+    adopt.add_argument("--max-rounds", type=int, default=6)
 
     bundle = subparsers.add_parser("bundle", help="generate one current task bundle")
     bundle.add_argument("--tasks-root", type=Path, default=Path("tasks"))
@@ -1744,6 +2345,27 @@ def _parser() -> argparse.ArgumentParser:
     review.add_argument("--effort", required=True)
     review.add_argument("--blocker", action="append", default=[])
     review.add_argument("--non-blocking", action="append", default=[])
+
+    meta_review = subparsers.add_parser(
+        "record-meta-review",
+        help="save one hash-bound UPHOLD/OBJECT reconciliation verdict",
+    )
+    meta_review.add_argument("--tasks-root", type=Path, default=Path("tasks"))
+    meta_review.add_argument("--slug", required=True)
+    meta_review.add_argument("--lane", choices=_REQUIRED_LANES, required=True)
+    meta_review.add_argument("--bundle-digest", required=True)
+    meta_review.add_argument(
+        "--stage", choices=tuple(_META_REVIEW_STAGES), required=True
+    )
+    meta_review.add_argument(
+        "--verdict", choices=tuple(sorted(_META_REVIEW_VERDICTS)), required=True
+    )
+    meta_review.add_argument("--opinion", required=True)
+    meta_review.add_argument("--finding", action="append", default=[])
+    meta_review.add_argument("--reviewer-artifact", type=Path, required=True)
+    meta_review.add_argument("--reviewer-mode", required=True)
+    meta_review.add_argument("--model", required=True)
+    meta_review.add_argument("--effort", required=True)
 
     aggregate = subparsers.add_parser(
         "aggregate", help="aggregate both current verdicts"
@@ -1815,6 +2437,21 @@ def main(argv: Sequence[str] | None = None) -> int:
                 effort=args.effort,
                 blockers=args.blocker,
                 non_blocking=args.non_blocking,
+            )
+        elif args.command == "record-meta-review":
+            result = record_meta_review(
+                args.tasks_root,
+                args.slug,
+                lane=args.lane,
+                bundle_digest=args.bundle_digest,
+                stage=args.stage,
+                verdict=args.verdict,
+                opinion=args.opinion,
+                findings=args.finding,
+                reviewer_artifact=args.reviewer_artifact,
+                reviewer_mode=args.reviewer_mode,
+                model=args.model,
+                effort=args.effort,
             )
         elif args.command == "aggregate":
             result = aggregate_reviews(args.tasks_root, args.slug)

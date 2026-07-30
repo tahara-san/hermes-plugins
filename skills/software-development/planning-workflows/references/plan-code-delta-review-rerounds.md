@@ -22,21 +22,20 @@ Round 1 of each gate is broad. Every later round narrows to:
 
 A later reviewer may still raise a real material defect outside the delta, but it must satisfy the blocker predicate. New polish and speculative hardening surfaced in later rounds are parked, not folded into the reround.
 
-## Convergence Mode
+## Ordinary dual-lane round budget
 
-Track `bundle_mutating_remediation_count` per gate. Default to three bundle-mutating remediation rounds before entering convergence mode. Same-byte clarification reruns and process retries are separate round types and do not consume the budget.
+Count every complete ordinary dual-lane review pair, whether full or delta. Limit each gate to **six dual-lane review rounds**. Same-digest meta-reviews and process retries that produce no substantive pair are separate event types and do not consume the ordinary-round budget.
 
-In convergence mode:
+After an unresolved ordinary round:
 
 - stop applying optional improvements and disable broad unrelated simplify edits;
 - deduplicate findings by stable ID so a reworded repeat cannot restart the loop;
 - review only blocker fixes and semantically affected scope under this delta protocol;
-- require any new late blocker to state its concrete material failure plus its relation to changed bytes, an explicit contract, or a material safety invariant inside the reviewed scope;
-- park new low-materiality findings automatically;
-- fix and review a remaining material blocker;
-- if the gate has not converged after one bounded additional blocker round, stop and escalate to the user instead of continuing autonomously.
+- carry compact unresolved meta-review opinions/findings into the next ordinary round;
+- keep any new material defect blocking;
+- if round six does not approve the gate, stop before round seven and ask the user to decide instead of continuing autonomously.
 
-The budget is not auto-approval. A late critical security, data-integrity, or correctness finding remains blocking regardless of the round count.
+The limit is not auto-approval. A late critical security, data-integrity, or correctness finding remains blocking regardless of the round count.
 
 ## Delta Scope
 
@@ -89,8 +88,8 @@ A delta review artifact should include:
 - carried-forward files/chunks;
 - verification commands rerun for the delta;
 - reviewer verdicts for the delta scope;
-- round coverage type: `full`, `delta`, `same-byte-clarification`, or `process-retry`;
-- running `bundle_mutating_remediation_count` and convergence-mode status;
+- round coverage type: `full`, `delta`, `meta-review`, or `process-retry`;
+- running ordinary dual-lane review-round count, reconciliation state, and meta-review event count;
 - novel finding IDs vs duplicates, and the disposition ledger path;
 - explicit statement that unchanged carried-forward files were not fully re-reviewed in this round.
 
@@ -103,5 +102,5 @@ A delta review artifact should include:
 - Starting a reround at all when the round's only findings were advisory. An advisory-only round is terminal.
 - Rerounding because a disposition ledger, raw pane, or gate JSON was written. Those are review-evidence, not judged product.
 - Assigning a new finding ID to a reworded repeat, which inflates the novel-finding count and prevents convergence.
-- Counting a same-byte clarification rerun or a schema-recovery retry against the bundle-mutating remediation budget.
+- Counting a same-digest meta-review or schema-recovery retry as an ordinary dual-lane review round.
 - Using a delta reround after a CRITICAL finding without an explicit full-rerun decision.

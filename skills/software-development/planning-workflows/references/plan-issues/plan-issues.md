@@ -97,7 +97,7 @@ Before creating any task directory, run initialization from the project root (re
 python3 <skill-dir>/scripts/plan_issues_workflow.py init \
   --tasks-root tasks \
   --definitions /absolute/path/to/definitions.json \
-  --max-rounds 4
+  --max-rounds 6
 ```
 
 Initialization fails before directory creation on invalid kebab names, duplicates, unknown prerequisites, a dependency cycle, or target collisions. Successful output creates:
@@ -204,7 +204,39 @@ python3 <skill-dir>/scripts/plan_issues_workflow.py record-review \
   --non-blocking "Consider an implementation-time edge test"
 ```
 
-The helper rejects an unpinned model/effort/mode, a raw artifact outside the task-local review tree, an artifact that does not attest the exact digest and verdict, or a raw artifact modified after verdict recording. It also rehashes the immutable bundle before recording or aggregating. Do not edit after the first lane returns when the companion result can still be collected. The helper refuses a replacement bundle while exactly one current-bundle lane is saved.
+The helper rejects an unpinned model/effort/mode, a raw artifact outside the task-local review tree, an artifact that does not attest the exact digest and verdict, or a raw artifact modified after verdict recording. It also rehashes the immutable bundle before recording or aggregating. Do not edit after the first lane returns when the companion result can still be collected. The helper refuses a replacement bundle while exactly one current-bundle ordinary lane is saved.
+
+For a mixed ordinary result, meta-review artifacts use exactly one block:
+
+```text
+BEGIN_META_REVIEW_RESULT
+BUNDLE_SHA256: <same 64-character lowercase SHA-256>
+REVIEWER_MODE: <exact pinned mode>
+MODEL: <exact pinned model>
+EFFORT: xhigh
+STAGE: PASSING_LANE_ASSESSMENT | FAILING_LANE_RECONSIDERATION
+VERDICT: UPHOLD | OBJECT
+END_META_REVIEW_RESULT
+```
+
+Record the passing-lane assessment first. The failing-lane reconsideration is accepted only after a passing-lane `OBJECT`; both remain bound to the same bundle digest and lane attestations. Example:
+
+```bash
+python3 <skill-dir>/scripts/plan_issues_workflow.py record-meta-review \
+  --tasks-root tasks \
+  --slug api-contract \
+  --lane codex \
+  --bundle-digest <sha256> \
+  --stage passing-lane-assessment \
+  --verdict OBJECT \
+  --opinion "The alleged blocker does not violate the stated contract" \
+  --reviewer-artifact tasks/api-contract/reviews/raw/v1-codex-assessment.txt \
+  --reviewer-mode interactive-codex-tui \
+  --model gpt-5.6-sol \
+  --effort xhigh
+```
+
+Meta verdicts reject ordinary values such as `PASS`, `APPROVED`, and `CHANGES_REQUIRED`. Exact duplicate records are idempotent; conflicting duplicate role/stage records are rejected.
 
 ### 7. Aggregate once, amend once, and bound rerounds
 
@@ -216,14 +248,15 @@ python3 <skill-dir>/scripts/plan_issues_workflow.py aggregate \
   --slug api-contract
 ```
 
-- Any blocker or `CHANGES_REQUIRED` verdict keeps the same task current.
-- Consolidate all blocker findings into one amendment pass.
-- Regenerate and rerun both lanes only after blocker-level or contradiction fixes. The reround bundle is current-only: include the latest authoritative evidence plus a concise changed/removed-evidence and consolidated finding-to-fix delta. Keep prior full bundles and prior raw review artifacts as historical paths/digests; do not embed them in the reround.
+- `PASS`/`PASS` approves the current digest. `CHANGES_REQUIRED`/`CHANGES_REQUIRED` keeps the task current, consumes one ordinary dual-lane round, and proceeds to blocker remediation.
+- A mixed ordinary verdict becomes `meta_review_pending` and does not yet consume a failed round. Ask the **passing lane** to **meta-review** the **failing lane** against the same digest.
+- Meta verdicts are exactly `UPHOLD` (agree with the prior verdict being assessed) and `OBJECT` (dispute it). Passing-lane `UPHOLD` preserves the failure. Passing-lane `OBJECT` triggers failing-lane reconsideration: its `UPHOLD` retains the failure, while its `OBJECT` withdraws the prior failure, normalizes that lane to PASS, and approves the same bundle.
+- An unresolved completed reconciliation consumes that ordinary round once. Consolidate blocker remediation and carry compact opinions/findings in the **next dual-lane round** current-only bundle. Prior raw review artifacts and meta-review artifacts remain historical paths/digests; do not embed them. There is no separate artifact-consistency review; the same mechanical chain validation covers reconciliation.
 - Preserve optional/non-blocking suggestions in the aggregate and handoff; they do not invalidate a matching approval or force plan churn.
-- The default cap is four total review rounds: the initial round plus at most three normal blocker-driven amendment/rerounds. Regeneration fails unless the authoritative docs actually changed after the consolidated blocker result.
-- If the fourth round does not pass, stop at a user-visible checkpoint and ask the user to decide how to proceed. Do not autonomously start another review round without an explicit user decision; report the consolidated root causes and options.
+- The default cap is **six dual-lane review rounds**. Meta-reviews do not count, and repeated aggregate calls do not double-count a completed ordinary round.
+- If round six does not pass, stop at a user-visible checkpoint before round seven and **ask the user to decide** how to proceed. Report consolidated root causes and options; do not autonomously start another ordinary review round.
 
-When both lanes approve the matching digest and live authoritative docs still match, the helper writes `reviews/final-review.json`, closes that task, and advances the ledger. A historical `final-review.json` never proves current approval by existence alone. Before trusting a saved ledger in a later session, run `python3 <skill-dir>/scripts/plan_issues_workflow.py status --tasks-root tasks`; it revalidates the complete bundle → two strict raw attestations/results → aggregate → `final-review.json` → live-doc chain and marks any missing, changed, mismatched, or unsafe approval stale. This mechanical chain gate means there is no separate artifact-consistency review and no third reviewer pass.
+When both ordinary lanes pass the matching digest, or a complete same-digest passing-lane `OBJECT` → failing-lane `OBJECT` reconciliation validly normalizes the failing lane to PASS, and live authoritative docs still match, the helper writes `reviews/final-review.json`, closes that task, and advances the ledger. A historical `final-review.json` never proves current approval by existence alone. Before trusting a saved ledger in a later session, run `python3 <skill-dir>/scripts/plan_issues_workflow.py status --tasks-root tasks`; it revalidates the complete bundle → strict ordinary raw attestations/results → optional reconciliation raw attestations/results → aggregate → `final-review.json` → live-doc chain and marks any missing, changed, mismatched, or unsafe approval stale. This mechanical chain gate means there is no separate artifact-consistency review and no third reviewer pass.
 
 ### 8. Handle delayed and superseded reviews
 
@@ -281,7 +314,7 @@ For a pre-helper conversion with existing stable task directories, first review 
 python3 <skill-dir>/scripts/plan_issues_workflow.py adopt-legacy \
   --tasks-root tasks \
   --definitions /absolute/path/to/definitions.json \
-  --max-rounds 4
+  --max-rounds 6
 ```
 
 Adoption refuses missing, symlinked, or ambiguous legacy directories. It preserves existing `reviews/` trees as immutable history, records their exact paths in task state, creates metadata/handoffs/ledger state, and starts with one current task without treating legacy review artifacts as current approval. Stable names mean adoption performs no directory renaming.

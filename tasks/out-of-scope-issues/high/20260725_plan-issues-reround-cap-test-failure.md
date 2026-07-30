@@ -8,6 +8,8 @@
 
 **Severity**: High
 
-**Context**: Found while running `python3 -m pytest` as the verification step for the plan-doc/plan-code review-finding-materiality refactor. Confirmed pre-existing by checking out `HEAD` (`37b7722`) into a clean throwaway worktree and running the same suite: it fails identically there, and the materiality refactor changed only Markdown and YAML files. Full suite result in both trees: `1 failed, 92 passed`.
+**Context**: Found while running `python3 -m pytest` as the verification step for the plan-doc/plan-code review-finding-materiality refactor. Confirmed pre-existing by checking out `HEAD` (`37b7722`) into a clean throwaway worktree and running the same suite: it failed identically there, and the materiality refactor changed only Markdown and YAML files. Historical full-suite result in both trees: `1 failed, 92 passed`.
 
-**Suggested Fix**: Decide which side is authoritative. If four total rounds (initial + three rerounds) is the intended contract — which is what `bed3eb0` and the current canonical `plan-issues` docs say — update the assertion to `== 4` and rename the test to match the four-round cap. If the ledger should only count *reround* failures rather than all failed rounds, fix the counter in `plan_issues_workflow.py` instead and leave the assertion at `3`. Either way, re-run `python3 -m pytest` so `main` is green again.
+Disposition on 2026-07-30: superseded by the approved six-ordinary-round contract. The replacement test now drives six failed ordinary dual-lane rounds, asserts `failed_rounds == 6`, verifies meta-reviews do not increment the count, and confirms round seven is blocked pending a user decision. The repository suite passed after that change.
+
+**Suggested Fix**: No separate four-versus-three fix remains. Keep this record as historical evidence until an explicitly authorized issue-cleanup pass removes resolved records; use the current six-round tests and canonical workflow policy as the active contract.

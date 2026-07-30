@@ -100,11 +100,11 @@ MODEL_AND_EFFORT: <as shown by the Codex session>
 
 See `review-finding-disposition-and-convergence.md` for the full predicate, the disposition set, and the convergence budget.
 
-### Bounded same-byte clarification rerun
+### Mixed-verdict meta-review
 
-If this required lane returns `CHANGES_REQUIRED` for a finding the orchestrator adjudicates as failing the blocker predicate, do not override the verdict in the aggregate and do not change judged bytes. Save the source-grounded adjudication, then launch **one** fresh, bounded, same-byte rerun of this lane against the unchanged bundle, restating the materiality policy and the adjudicating evidence. Do not negotiate inside the old session — it holds stale context and its transcript is not an adjudication forum. A fresh qualifying `PASS` against the same digest closes the lane, and the companion lane's existing `PASS` stays current because the reviewed bytes did not change. If the rerun still returns `CHANGES_REQUIRED`, stop and escalate to the user.
+If this qualifying lane is the **passing lane** while the companion is the **failing lane**, keep the bundle immutable and ask this lane to **meta-review** the failing verdict on the same digest. If this lane is failing, it may reconsider only after the passing lane objects. Meta verdicts are exactly `UPHOLD` (agree with the verdict being assessed) or `OBJECT` (dispute it): passing-lane `UPHOLD` preserves the companion failure for remediation and the **next dual-lane round**; passing-lane `OBJECT` is sent to the failing lane; failing-lane `UPHOLD` retains its failure; failing-lane `OBJECT` withdraws the failure, normalizes that lane to PASS, and approves the same bundle.
 
-A same-byte clarification rerun is a distinct round type. Record it as `coverage: same-byte-clarification`; it does not count against the bundle-mutating remediation budget.
+Preserve the raw meta-review, role/stage, opinion, findings, model/effort attestation, and exact digest. Meta-reviews do not count toward the **six dual-lane review rounds**. If round six does not approve the gate, stop before round seven and **ask the user to decide** how to proceed. Process-invalid lanes stay fail-closed and do not enter substantive meta-review.
 
 Monitor with repeated, bounded `tmux capture-pane` calls. If Codex keeps exploring after the bounded review scope is clear, send a follow-up through the pane asking it to stop further exploration and return the exact verdict format from reviewed context. Do not terminate a quiet pane merely because a normal command timeout elapsed.
 
@@ -135,7 +135,7 @@ The aggregate review artifact should record at least:
 - verdict and findings
 - lane/process state: `QUALIFYING` or `BLOCKED_PROCESS`
 - per-finding materiality and disposition, with stable finding IDs (or the ledger path holding them)
-- round coverage: `full`, `delta`, `same-byte-clarification`, or `process-retry`
+- round coverage: `full`, `delta`, `meta-review`, or `process-retry`
 - verification/static-scan evidence supplied to the reviewer
 - timestamp
 

@@ -62,7 +62,7 @@ Patch the task docs only for a confirmed blocker. Any judged-product change make
 
 If the verdict is `APPROVED` with only non-blocking polish, the gate is done. Save those suggestions in the review artifact with a disposition such as "left as non-blocking implementation guidance" and do not edit again — editing here is exactly what creates the endless stale-review loop.
 
-If Claude returns `CHANGES_REQUIRED` on a finding you adjudicate as failing the blocker predicate, do not override the verdict and do not edit the docs to appease it. Save the adjudication, then run one bounded same-byte clarification rerun of this lane against the unchanged bundle, restating the materiality policy. If it still returns `CHANGES_REQUIRED`, stop and escalate to the user.
+If ordinary results are mixed, do not override a verdict or edit the docs. Ask the **passing lane** to **meta-review** the **failing lane** against the same immutable digest using exactly `UPHOLD` (agree with the verdict assessed) or `OBJECT` (dispute it). Passing-lane `UPHOLD` preserves the failure for remediation and the **next dual-lane round**. Passing-lane `OBJECT` goes to failing-lane reconsideration; its `UPHOLD` retains the failure, while its `OBJECT` withdraws the failure, normalizes that lane to PASS, and approves the same bundle. Preserve compact unresolved opinions/findings as next-round context. Meta-reviews do not count toward the **six dual-lane review rounds**. If round six does not approve the gate, stop before round seven and **ask the user to decide** how to proceed. Process-invalid lanes remain fail-closed and do not enter substantive reconciliation.
 
 ## Artifact
 

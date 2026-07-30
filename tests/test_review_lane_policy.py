@@ -40,6 +40,27 @@ PARALLEL_REVIEW_CONTRACT_FILES = [
     SKILLS / "planning-workflows" / "references" / "plan-code" / "plan-code.md",
 ]
 
+TWO_LANE_RECONCILIATION_FILES = [
+    SKILLS / "planning-workflows" / "SKILL.md",
+    SKILLS
+    / "planning-workflows"
+    / "references"
+    / "review-finding-disposition-and-convergence.md",
+    SKILLS / "planning-workflows" / "references" / "codex-cli-review-lane.md",
+    SKILLS / "planning-workflows" / "references" / "plan-doc" / "plan-doc.md",
+    SKILLS / "planning-workflows" / "references" / "plan-code" / "plan-code.md",
+    SKILLS
+    / "planning-workflows"
+    / "references"
+    / "plan-code"
+    / "references"
+    / "phase-review-loop-discipline.md",
+    SKILLS / "plan-issues" / "SKILL.md",
+    SKILLS / "planning-workflows" / "references" / "plan-issues" / "plan-issues.md",
+    CLAUDE_I_DIR / "references" / "implementation-diff-review-plan-code.md",
+    CLAUDE_I_DIR / "references" / "plan-doc-read-only-review.md",
+]
+
 MIGRATED_CODEX_RECOVERY_REFERENCES = [
     SKILLS
     / "planning-workflows"
@@ -217,6 +238,45 @@ def test_required_multi_lane_reviews_launch_before_waiting():
         assert contract in path.read_text().lower(), path
 
 
+def test_mixed_two_lane_verdicts_use_reviewer_to_reviewer_meta_reconciliation():
+    for path in TWO_LANE_RECONCILIATION_FILES:
+        content = path.read_text().lower()
+        assert "meta-review" in content, path
+        assert "passing lane" in content, path
+        assert "failing lane" in content, path
+        assert "`uphold`" in content, path
+        assert "`object`" in content, path
+        assert "next dual-lane round" in content, path
+
+
+def test_two_lane_review_limit_is_six_rounds_excluding_meta_reviews():
+    for path in TWO_LANE_RECONCILIATION_FILES:
+        content = path.read_text().lower()
+        assert "six dual-lane review rounds" in content, path
+        assert "meta-reviews do not count" in content, path
+        assert "ask the user to decide" in content, path
+
+
+def test_two_lane_policy_has_no_legacy_remediation_round_accounting():
+    forbidden = (
+        "third bundle-mutating remediation round",
+        "running bundle-mutating remediation count",
+        "at most three bundle-mutating remediation rounds",
+    )
+    violations = [
+        f"{path.relative_to(ROOT)}: {phrase}"
+        for path in _all_planning_markdown()
+        for phrase in forbidden
+        if phrase in path.read_text().lower()
+    ]
+    assert not violations, "\n".join(violations)
+
+
+def test_planning_workflow_policy_is_not_literal_truncated_output():
+    path = SKILLS / "planning-workflows" / "SKILL.md"
+    assert "[truncated]" not in path.read_text().lower()
+
+
 def test_plan_issues_requires_stable_task_directory_names_and_graph_metadata():
     paths = [
         SKILLS / "plan-issues" / "SKILL.md",
@@ -279,7 +339,7 @@ def test_nested_out_of_scope_planning_reference_matches_plan_issues_contract():
     assert "launched before waiting on either" in content
 
 
-def test_plan_issues_rerounds_are_current_only_and_cap_at_four_rounds():
+def test_plan_issues_rerounds_are_current_only_and_cap_at_six_rounds():
     paths = [
         SKILLS / "plan-issues" / "SKILL.md",
         SKILLS / "planning-workflows" / "references" / "plan-issues" / "plan-issues.md",
@@ -293,7 +353,8 @@ def test_plan_issues_rerounds_are_current_only_and_cap_at_four_rounds():
         assert "current-only" in content, path
         assert "prior raw review artifacts" in content, path
         assert "no separate artifact-consistency review" in content, path
-        assert "four total review rounds" in content, path
+        assert "six dual-lane review rounds" in content, path
+        assert "meta-reviews do not count" in content, path
         assert "ask the user to decide" in content, path
 
     cap_references = [
@@ -307,7 +368,8 @@ def test_plan_issues_rerounds_are_current_only_and_cap_at_four_rounds():
     ]
     for path in cap_references:
         content = path.read_text().lower()
-        assert "four total review rounds" in content, path
+        assert "six dual-lane review rounds" in content, path
+        assert "meta-reviews do not count" in content, path
         assert "ask the user to decide" in content, path
 
 
