@@ -40,7 +40,7 @@ _LIVE_DOC_NAMES = ("spec.md", "todo.md", "task-metadata.json")
 _DIGEST = re.compile(r"^[0-9a-f]{64}$")
 _META_REVIEW_STAGES = {
     "passing-lane-assessment": "PASSING_LANE_ASSESSMENT",
-    "failing-lane-reconsideration": "FAILING_LANE_RECONSIDERATION",
+    "failing-lane-assessment": "FAILING_LANE_ASSESSMENT",
 }
 _META_REVIEW_VERDICTS = {"UPHOLD", "OBJECT"}
 _DEPENDENCY_CONTRACT_MAX_BYTES = 16_384
@@ -428,9 +428,87 @@ def _persist(tasks_root: Path, status: dict[str, Any]) -> None:
             _render_handoff(tasks_root, slug, status["tasks"][slug])
 
 
+def _migrate_legacy_pending_reconciliation(
+    tasks_root: Path, status: dict[str, Any]
+) -> bool:
+    """Migrate only non-terminal sequential reconciliation state safely."""
+
+    migrations: list[tuple[str, dict[str, Any], Path, dict[str, Any]]] = []
+    for slug in status.get("task_order", []):
+        entry = status["tasks"][slug]
+        reconciliation = entry.get("reconciliation")
+        is_legacy_pending = entry.get("state") == "meta_reconsideration_pending"
+        if isinstance(reconciliation, Mapping):
+            is_legacy_pending = is_legacy_pending or (
+                entry.get("state") == "meta_review_pending"
+                and "failing_reconsideration" in reconciliation
+            )
+        if not is_legacy_pending:
+            continue
+        if not isinstance(reconciliation, Mapping):
+            raise WorkflowError(
+                "legacy pending reconciliation is malformed and cannot be migrated"
+            )
+        if reconciliation.get("failing_reconsideration") is not None:
+            raise WorkflowError(
+                "terminal legacy reconsideration evidence cannot be reinterpreted as "
+                "a symmetric cross-assessment"
+            )
+        if reconciliation.get("failing_assessment") is not None:
+            raise WorkflowError(
+                "legacy reconciliation contains conflicting assessment state"
+            )
+
+        migrated = dict(reconciliation)
+        migrated.pop("failing_reconsideration", None)
+        migrated["failing_assessment"] = None
+        bundle = entry.get("current_bundle")
+        if not isinstance(bundle, Mapping) or not isinstance(
+            bundle.get("version"), int
+        ):
+            raise WorkflowError(
+                "legacy pending reconciliation has no current bundle to migrate"
+            )
+        aggregate_path = _aggregate_path(tasks_root, slug, int(bundle["version"]))
+        aggregate = _json_read(aggregate_path)
+        aggregate["reconciliation"] = migrated
+        aggregate["state"] = "meta_review_pending"
+        _validate_aggregate_evidence(
+            tasks_root,
+            slug,
+            aggregate,
+            status_reviews=entry.get("reviews") or {},
+            require_live_docs=True,
+        )
+        migrations.append((slug, migrated, aggregate_path, aggregate))
+
+    for slug, migrated, aggregate_path, aggregate in migrations:
+        entry = status["tasks"][slug]
+        entry["reconciliation"] = migrated
+        entry["state"] = "meta_review_pending"
+        passing_pending = migrated.get("passing_assessment") is None
+        failing_pending = migrated.get("failing_assessment") is None
+        if passing_pending and failing_pending:
+            entry["next_action"] = (
+                "Launch both independent same-digest cross-assessments before waiting."
+            )
+        elif passing_pending:
+            entry["next_action"] = (
+                "Record the passing lane's same-digest assessment of the failing verdict."
+            )
+        else:
+            entry["next_action"] = (
+                "Record the failing lane's same-digest assessment of the passing verdict."
+            )
+        _json_write(aggregate_path, aggregate)
+    return bool(migrations)
+
+
 def _load_current_status(tasks_root: Path) -> dict[str, Any]:
     status = _load_status(tasks_root)
-    if _reconcile_approved_state(tasks_root, status):
+    changed = _migrate_legacy_pending_reconciliation(tasks_root, status)
+    changed = _reconcile_approved_state(tasks_root, status) or changed
+    if changed:
         _persist(tasks_root, status)
     return status
 
@@ -770,7 +848,7 @@ def build_review_bundle(
         raise WorkflowError(
             "review round cap reached; stop and request a user decision before any further review"
         )
-    if entry["state"] in {"meta_review_pending", "meta_reconsideration_pending"}:
+    if entry["state"] == "meta_review_pending":
         raise WorkflowError(
             "current same-digest meta-review must complete before regenerating the review bundle"
         )
@@ -839,8 +917,8 @@ def build_review_bundle(
                 "passing_assessment": _compact_meta_context(
                     reconciliation.get("passing_assessment")
                 ),
-                "failing_reconsideration": _compact_meta_context(
-                    reconciliation.get("failing_reconsideration")
+                "failing_assessment": _compact_meta_context(
+                    reconciliation.get("failing_assessment")
                 ),
             }
 
@@ -880,7 +958,7 @@ def build_review_bundle(
             )
             for label, key in (
                 ("Passing-lane assessment", "passing_assessment"),
-                ("Failing-lane reconsideration", "failing_reconsideration"),
+                ("Failing-lane assessment", "failing_assessment"),
             ):
                 opinion = reconciliation_context.get(key)
                 if not opinion:
@@ -1305,7 +1383,7 @@ def _validate_aggregate_evidence(
             "failing_lane",
             "initial_lanes",
             "passing_assessment",
-            "failing_reconsideration",
+            "failing_assessment",
         }
         if (
             not required_reconciliation_fields.issubset(reconciliation)
@@ -1345,14 +1423,8 @@ def _validate_aggregate_evidence(
             )
 
         passing_assessment = reconciliation.get("passing_assessment")
-        failing_reconsideration = reconciliation.get("failing_reconsideration")
-        if passing_assessment is None:
-            if failing_reconsideration is not None:
-                raise WorkflowError(
-                    "failing lane cannot reconsider before passing-lane assessment"
-                )
-            expected_state = "meta_review_pending"
-        else:
+        failing_assessment = reconciliation.get("failing_assessment")
+        if passing_assessment is not None:
             if not isinstance(passing_assessment, Mapping):
                 raise WorkflowError("passing-lane assessment must be an object")
             _validate_meta_review_record(
@@ -1363,32 +1435,28 @@ def _validate_aggregate_evidence(
                 stage="passing-lane-assessment",
                 bundle_digest=bundle_digest,
             )
-            if passing_assessment["verdict"] == "UPHOLD":
-                if failing_reconsideration is not None:
-                    raise WorkflowError(
-                        "failing-lane reconsideration is invalid after an UPHOLD assessment"
-                    )
-                expected_state = "changes_required"
-            elif failing_reconsideration is None:
-                expected_state = "meta_reconsideration_pending"
-            else:
-                if not isinstance(failing_reconsideration, Mapping):
-                    raise WorkflowError(
-                        "failing-lane reconsideration must be an object"
-                    )
-                _validate_meta_review_record(
-                    root,
-                    slug,
-                    failing_reconsideration,
-                    lane=failing_lane,
-                    stage="failing-lane-reconsideration",
-                    bundle_digest=bundle_digest,
-                )
-                expected_state = (
-                    "approved"
-                    if failing_reconsideration["verdict"] == "OBJECT"
-                    else "changes_required"
-                )
+        if failing_assessment is not None:
+            if not isinstance(failing_assessment, Mapping):
+                raise WorkflowError("failing-lane assessment must be an object")
+            _validate_meta_review_record(
+                root,
+                slug,
+                failing_assessment,
+                lane=failing_lane,
+                stage="failing-lane-assessment",
+                bundle_digest=bundle_digest,
+            )
+
+        if passing_assessment is None or failing_assessment is None:
+            expected_state = "meta_review_pending"
+        else:
+            reviewers_agree_to_pass = (
+                passing_assessment["verdict"] == "OBJECT"
+                and failing_assessment["verdict"] == "UPHOLD"
+            )
+            expected_state = (
+                "approved" if reviewers_agree_to_pass else "changes_required"
+            )
 
         if expected_state == "approved":
             for lane in _REQUIRED_LANES:
@@ -1676,16 +1744,26 @@ def _store_aggregate(
             )
     elif state == "meta_review_pending":
         entry["blocker"] = None
-        entry["next_action"] = (
-            f"Ask the passing lane {aggregate['passing_lane']} to assess the failing lane "
-            f"{aggregate['failing_lane']} verdict on this exact digest using UPHOLD or OBJECT."
-        )
-    elif state == "meta_reconsideration_pending":
-        entry["blocker"] = None
-        entry["next_action"] = (
-            f"Send the passing lane {aggregate['passing_lane']} OBJECT meta-review to the "
-            f"failing lane {aggregate['failing_lane']} for reconsideration using UPHOLD or OBJECT."
-        )
+        reconciliation = aggregate["reconciliation"]
+        passing_pending = reconciliation.get("passing_assessment") is None
+        failing_pending = reconciliation.get("failing_assessment") is None
+        if passing_pending and failing_pending:
+            entry["next_action"] = (
+                f"Launch both independent same-digest cross-assessments before waiting: "
+                f"passing lane {aggregate['passing_lane']} assesses failing lane "
+                f"{aggregate['failing_lane']}, and failing lane {aggregate['failing_lane']} "
+                f"assesses passing lane {aggregate['passing_lane']}, using UPHOLD or OBJECT."
+            )
+        elif passing_pending:
+            entry["next_action"] = (
+                f"Collect passing lane {aggregate['passing_lane']}'s assessment of failing "
+                f"lane {aggregate['failing_lane']} on this exact digest."
+            )
+        else:
+            entry["next_action"] = (
+                f"Collect failing lane {aggregate['failing_lane']}'s assessment of passing "
+                f"lane {aggregate['passing_lane']} on this exact digest."
+            )
     elif state == "approved":
         entry["blocker"] = None
         entry["next_action"] = (
@@ -1761,7 +1839,7 @@ def aggregate_reviews(tasks_root: Path | str, slug: str) -> dict[str, Any]:
             "failing_lane": failing[0],
             "initial_lanes": {lane: reviews[lane] for lane in _REQUIRED_LANES},
             "passing_assessment": None,
-            "failing_reconsideration": None,
+            "failing_assessment": None,
         }
         aggregate.update(
             {
@@ -1834,23 +1912,17 @@ def record_meta_review(
     record_key = (
         "passing_assessment"
         if normalized_stage == "passing-lane-assessment"
-        else "failing_reconsideration"
+        else "failing_assessment"
     )
     if normalized_stage == "passing-lane-assessment":
         if lane != passing_lane:
             raise WorkflowError(
                 "only the passing lane may perform the passing-lane assessment"
             )
-    else:
-        passing_assessment = reconciliation.get("passing_assessment")
-        if (
-            lane != failing_lane
-            or not isinstance(passing_assessment, Mapping)
-            or passing_assessment.get("verdict") != "OBJECT"
-        ):
-            raise WorkflowError(
-                "failing-lane reconsideration requires a passing-lane OBJECT and the original failing lane"
-            )
+    elif lane != failing_lane:
+        raise WorkflowError(
+            "only the failing lane may perform the failing-lane assessment"
+        )
 
     result = {
         "schema_version": 1,
@@ -1909,12 +1981,7 @@ def record_meta_review(
         )
         return aggregate
 
-    expected_state = (
-        "meta_review_pending"
-        if normalized_stage == "passing-lane-assessment"
-        else "meta_reconsideration_pending"
-    )
-    if entry["state"] != expected_state:
+    if entry["state"] != "meta_review_pending":
         raise WorkflowError(
             f"task is not accepting {normalized_stage} in state {entry['state']}"
         )
@@ -1933,17 +2000,21 @@ def record_meta_review(
     aggregate["passing_lane"] = passing_lane
     aggregate["failing_lane"] = failing_lane
 
-    if normalized_stage == "passing-lane-assessment":
-        aggregate["state"] = (
-            "changes_required"
-            if normalized_verdict == "UPHOLD"
-            else "meta_reconsideration_pending"
-        )
-        count_failed_round = normalized_verdict == "UPHOLD"
-    elif normalized_verdict == "UPHOLD":
-        aggregate["state"] = "changes_required"
-        count_failed_round = True
-    else:
+    passing_assessment = reconciliation.get("passing_assessment")
+    failing_assessment = reconciliation.get("failing_assessment")
+    assessments_complete = isinstance(passing_assessment, Mapping) and isinstance(
+        failing_assessment, Mapping
+    )
+    reviewers_agree_to_pass = (
+        isinstance(passing_assessment, Mapping)
+        and passing_assessment["verdict"] == "OBJECT"
+        and isinstance(failing_assessment, Mapping)
+        and failing_assessment["verdict"] == "UPHOLD"
+    )
+    if not assessments_complete:
+        aggregate["state"] = "meta_review_pending"
+        count_failed_round = False
+    elif reviewers_agree_to_pass:
         aggregate["state"] = "approved"
         aggregate["blockers"] = []
         aggregate["lanes"] = {
@@ -1955,6 +2026,9 @@ def record_meta_review(
             for review_lane in _REQUIRED_LANES
         }
         count_failed_round = False
+    else:
+        aggregate["state"] = "changes_required"
+        count_failed_round = True
 
     _json_write(result_path, stored_result)
     return _store_aggregate(

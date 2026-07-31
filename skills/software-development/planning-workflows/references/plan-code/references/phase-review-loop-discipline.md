@@ -39,8 +39,8 @@ Applying an optional suggestion is not free: it mutates judged bytes, stales the
 
 **Mixed substantive verdict:**
 
-- When exactly one ordinary lane passes, keep judged bytes fixed and ask the **passing lane** to **meta-review** the **failing lane** on the same digest using only `UPHOLD` (agree) or `OBJECT` (dispute).
-- Passing-lane `UPHOLD` preserves the failure for remediation and the **next dual-lane round**. Passing-lane `OBJECT` is sent to the failing lane; its `UPHOLD` retains the failure, while its `OBJECT` withdraws the failure, normalizes that lane to PASS, and approves the same bundle.
+- When exactly one ordinary lane passes, keep judged bytes fixed and launch both independent same-digest cross-assessments before waiting: the **passing lane** reviews the **failing lane** verdict, and the **failing lane** reviews the **passing lane** verdict, each using only `UPHOLD` (agree) or `OBJECT` (dispute).
+- Either assessment may finish first. Only passing-lane `OBJECT` plus failing-lane `UPHOLD` shows agreement in the passing direction and approves the same bundle. Any other complete pair preserves the failure for remediation and the **next dual-lane round**.
 - Preserve compact meta-review opinions/findings as next-round context when unresolved. Meta-reviews do not count toward the **six dual-lane review rounds**. If round six does not approve the gate, stop before round seven and **ask the user to decide** how to proceed. No aggregate or orchestrator override is allowed.
 
 **Process failure (never parked):**

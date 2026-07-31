@@ -214,12 +214,12 @@ BUNDLE_SHA256: <same 64-character lowercase SHA-256>
 REVIEWER_MODE: <exact pinned mode>
 MODEL: <exact pinned model>
 EFFORT: xhigh
-STAGE: PASSING_LANE_ASSESSMENT | FAILING_LANE_RECONSIDERATION
+STAGE: PASSING_LANE_ASSESSMENT | FAILING_LANE_ASSESSMENT
 VERDICT: UPHOLD | OBJECT
 END_META_REVIEW_RESULT
 ```
 
-Record the passing-lane assessment first. The failing-lane reconsideration is accepted only after a passing-lane `OBJECT`; both remain bound to the same bundle digest and lane attestations. Example:
+Launch both independent cross-assessments before waiting for either result. The passing lane assesses the failing verdict, while the failing lane assesses the passing verdict. Either record may arrive first; both remain bound to the same bundle digest and lane attestations. Example pair:
 
 ```bash
 python3 <skill-dir>/scripts/plan_issues_workflow.py record-meta-review \
@@ -233,6 +233,19 @@ python3 <skill-dir>/scripts/plan_issues_workflow.py record-meta-review \
   --reviewer-artifact tasks/api-contract/reviews/raw/v1-codex-assessment.txt \
   --reviewer-mode interactive-codex-tui \
   --model gpt-5.6-sol \
+  --effort xhigh
+
+python3 <skill-dir>/scripts/plan_issues_workflow.py record-meta-review \
+  --tasks-root tasks \
+  --slug api-contract \
+  --lane claude \
+  --bundle-digest <sha256> \
+  --stage failing-lane-assessment \
+  --verdict UPHOLD \
+  --opinion "The passing verdict is supported by the stated contract" \
+  --reviewer-artifact tasks/api-contract/reviews/raw/v1-claude-assessment.txt \
+  --reviewer-mode interactive-claude-code \
+  --model claude-opus-4-8 \
   --effort xhigh
 ```
 
@@ -249,14 +262,14 @@ python3 <skill-dir>/scripts/plan_issues_workflow.py aggregate \
 ```
 
 - `PASS`/`PASS` approves the current digest. `CHANGES_REQUIRED`/`CHANGES_REQUIRED` keeps the task current, consumes one ordinary dual-lane round, and proceeds to blocker remediation.
-- A mixed ordinary verdict becomes `meta_review_pending` and does not yet consume a failed round. Ask the **passing lane** to **meta-review** the **failing lane** against the same digest.
-- Meta verdicts are exactly `UPHOLD` (agree with the prior verdict being assessed) and `OBJECT` (dispute it). Passing-lane `UPHOLD` preserves the failure. Passing-lane `OBJECT` triggers failing-lane reconsideration: its `UPHOLD` retains the failure, while its `OBJECT` withdraws the prior failure, normalizes that lane to PASS, and approves the same bundle.
+- A mixed ordinary verdict becomes `meta_review_pending` and does not yet consume a failed round. Launch both independent same-digest cross-assessments before waiting: the **passing lane** reviews the **failing lane** verdict, and the **failing lane** reviews the **passing lane** verdict.
+- Meta verdicts are exactly `UPHOLD` (agree with the verdict being assessed) and `OBJECT` (dispute it). Either assessment may arrive first. Approve only when both reviewers agree in the passing direction: passing-lane `OBJECT` plus failing-lane `UPHOLD`. Any other complete pair preserves the failure.
 - An unresolved completed reconciliation consumes that ordinary round once. Consolidate blocker remediation and carry compact opinions/findings in the **next dual-lane round** current-only bundle. Prior raw review artifacts and meta-review artifacts remain historical paths/digests; do not embed them. There is no separate artifact-consistency review; the same mechanical chain validation covers reconciliation.
 - Preserve optional/non-blocking suggestions in the aggregate and handoff; they do not invalidate a matching approval or force plan churn.
 - The default cap is **six dual-lane review rounds**. Meta-reviews do not count, and repeated aggregate calls do not double-count a completed ordinary round.
 - If round six does not pass, stop at a user-visible checkpoint before round seven and **ask the user to decide** how to proceed. Report consolidated root causes and options; do not autonomously start another ordinary review round.
 
-When both ordinary lanes pass the matching digest, or a complete same-digest passing-lane `OBJECT` → failing-lane `OBJECT` reconciliation validly normalizes the failing lane to PASS, and live authoritative docs still match, the helper writes `reviews/final-review.json`, closes that task, and advances the ledger. A historical `final-review.json` never proves current approval by existence alone. Before trusting a saved ledger in a later session, run `python3 <skill-dir>/scripts/plan_issues_workflow.py status --tasks-root tasks`; it revalidates the complete bundle → strict ordinary raw attestations/results → optional reconciliation raw attestations/results → aggregate → `final-review.json` → live-doc chain and marks any missing, changed, mismatched, or unsafe approval stale. This mechanical chain gate means there is no separate artifact-consistency review and no third reviewer pass.
+When both ordinary lanes pass the matching digest, or a complete same-digest passing-lane `OBJECT` plus failing-lane `UPHOLD` reconciliation validly normalizes the failing lane to PASS, and live authoritative docs still match, the helper writes `reviews/final-review.json`, closes that task, and advances the ledger. A historical `final-review.json` never proves current approval by existence alone. Before trusting a saved ledger in a later session, run `python3 <skill-dir>/scripts/plan_issues_workflow.py status --tasks-root tasks`; it revalidates the complete bundle → strict ordinary raw attestations/results → optional reconciliation raw attestations/results → aggregate → `final-review.json` → live-doc chain and marks any missing, changed, mismatched, or unsafe approval stale. This mechanical chain gate means there is no separate artifact-consistency review and no third reviewer pass.
 
 ### 8. Handle delayed and superseded reviews
 

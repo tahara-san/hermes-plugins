@@ -148,14 +148,14 @@ Advisories are preserved in the artifact but must not cause judged-byte mutation
 
 The orchestrator must **never** override a mandatory lane's `CHANGES_REQUIRED` in the aggregate artifact. When one ordinary lane returns `PASS` and the other returns `CHANGES_REQUIRED`, keep the exact bundle immutable and reconcile reviewer-to-reviewer:
 
-1. Ask the **passing lane** to meta-review the **failing lane** verdict, findings, and evidence against the same digest.
-2. Meta-review verdicts are exactly **`UPHOLD`** (agree with the prior verdict being assessed) or **`OBJECT`** (dispute it). Preserve the opinion and findings with the verdict.
-3. If the passing lane returns `UPHOLD`, the failing verdict stands. Preserve useful reconciliation context, remediate confirmed blockers when needed, and proceed to the **next dual-lane round**.
-4. If the passing lane returns `OBJECT`, send that meta-review to the failing lane for a second same-digest meta-review.
-5. If the failing lane returns `UPHOLD`, it retains `CHANGES_REQUIRED`; preserve both opinions and proceed to the next dual-lane round.
-6. If the failing lane returns `OBJECT`, it withdraws its original `CHANGES_REQUIRED`; normalize that lane to `PASS` and close the current bundle as both lanes passing.
+1. Launch both independent same-digest cross-assessments before waiting for either result: the **passing lane** meta-reviews the **failing lane** verdict, findings, and evidence, while the **failing lane** meta-reviews the **passing lane** verdict and evidence.
+2. Each meta-review uses exactly **`UPHOLD`** (agree with the verdict being assessed) or **`OBJECT`** (dispute it). Preserve each lane's opinion and findings with its verdict.
+3. The passing lane points toward pass only by returning `OBJECT` to the failing verdict. The failing lane points toward pass only by returning `UPHOLD` to the passing verdict.
+4. Approve the unchanged bundle only when both reviewers agree in the passing direction: passing-lane `OBJECT` plus failing-lane `UPHOLD`. Normalize the original failing lane to `PASS` and close the current bundle as both lanes passing.
+5. Any other complete pair preserves `CHANGES_REQUIRED`. Preserve useful reconciliation context, remediate confirmed blockers when needed, and proceed to the **next dual-lane round**.
+6. Either cross-assessment may be recorded first. One result alone remains `meta_review_pending`, is not terminal, and does not consume the ordinary round as failed.
 
-Meta-reviews are sequential because the second consumes the first, but they stay bound to the immutable digest and retain the pinned lane model/effort attestations. Process-invalid, unavailable, malformed, wrong-digest, or wrong-model lanes remain `BLOCKED_PROCESS`; they do not enter substantive reconciliation.
+The cross-assessments are independent and should be launched before waiting, but both stay bound to the same immutable digest and retain their pinned lane model/effort attestations. Process-invalid, unavailable, malformed, wrong-digest, or wrong-model lanes remain `BLOCKED_PROCESS`; they do not enter substantive reconciliation.
 
 Limit each gate to **six dual-lane review rounds**. Meta-reviews do not count as dual-lane rounds. If the gate has not passed after round six, stop before round seven and **ask the user to decide** how to proceed. The limit is not auto-approval and never waives a real blocker.
 
@@ -282,7 +282,7 @@ Stop and ask the user to decide when `dual_lane_review_round_count` reaches six 
 
 - Treating a reviewer's `worth_addressing` / `NON_BLOCKING` list as a mandatory work queue.
 - Converting a `BLOCKED_PROCESS` lane into an advisory or parking it.
-- Letting an aggregate artifact declare PASS while a required lane still says `CHANGES_REQUIRED` without a complete passing-lane `OBJECT` then failing-lane `OBJECT` reconciliation chain.
+- Letting an aggregate artifact declare PASS while a required lane still says `CHANGES_REQUIRED` without both same-digest cross-assessments agreeing in the passing direction: passing-lane `OBJECT` plus failing-lane `UPHOLD`.
 - Treating an orchestrator adjudication as reviewer consent instead of recording the required same-digest meta-review.
 - Editing judged bytes just to write down a parking rationale.
 - Re-reviewing generated gate artifacts substantively when no judged byte changed.

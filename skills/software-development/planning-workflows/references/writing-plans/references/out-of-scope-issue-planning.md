@@ -38,7 +38,7 @@ If operating in Hermes rather than Claude Code:
   - simplification pass before review
   - exactly one target slug and one bounded explicit evidence manifest
   - bare interactive Codex in managed tmux with GPT-5.6 SOL @ xhigh and Claude Code through `claude-i`, launched before waiting on either lane for the current task
-  - save both complete matching-digest ordinary results; reconcile a mixed result through same-digest passing-lane then, if objected, failing-lane meta-review using only `UPHOLD`/`OBJECT`; carry unresolved context into a current-only reround after consolidated blocker remediation
+  - save both complete matching-digest ordinary results; for a mixed result, launch independent same-digest cross-assessments before waiting so the passing lane reviews the failing verdict and the failing lane reviews the passing verdict using only `UPHOLD`/`OBJECT`; approve only for passing-lane `OBJECT` plus failing-lane `UPHOLD`; carry every other completed pair's unresolved context into a current-only reround after consolidated blocker remediation
   - limit the gate to six dual-lane review rounds; meta-reviews do not count, and if round six does not pass, stop before round seven and ask the user to decide how to proceed
   - do not generate or dispatch the next task until the current task closes or the user authorizes moving past a durable block
   - bind approved prerequisites through compact size-bounded contracts included in the dependent manifest; represent an authorized durable block as an explicit gate

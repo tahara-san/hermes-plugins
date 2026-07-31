@@ -198,6 +198,177 @@ def begin_mixed_review(module, tasks_root: Path):
     return manifest, bundle
 
 
+def test_mixed_verdict_cross_assessments_can_arrive_in_either_order(tmp_path: Path):
+    module = load_module()
+    tasks_root = tmp_path / "tasks"
+    _, bundle = begin_mixed_review(module, tasks_root)
+
+    pending = record_meta_review(
+        module,
+        tasks_root,
+        "alpha",
+        lane="claude",
+        bundle_digest=bundle.digest,
+        stage="failing-lane-assessment",
+        verdict="UPHOLD",
+        opinion="The passing verdict is supported by the reviewed evidence.",
+    )
+
+    assert pending["state"] == "meta_review_pending"
+    assert pending["reconciliation"]["failing_assessment"]["verdict"] == "UPHOLD"
+    assert pending["reconciliation"]["passing_assessment"] is None
+    status = json.loads((tasks_root / "plan-issues-status.json").read_text())
+    assert status["tasks"]["alpha"]["failed_rounds"] == 0
+
+    aggregate = record_meta_review(
+        module,
+        tasks_root,
+        "alpha",
+        lane="codex",
+        bundle_digest=bundle.digest,
+        stage="passing-lane-assessment",
+        verdict="OBJECT",
+        opinion="The failing verdict is not supported by the reviewed evidence.",
+    )
+
+    assert aggregate["state"] == "approved"
+    assert {lane["verdict"] for lane in aggregate["lanes"].values()} == {"APPROVED"}
+
+
+def test_legacy_pending_reconsideration_migrates_without_reinterpreting_verdicts(
+    tmp_path: Path,
+):
+    module = load_module()
+    tasks_root = tmp_path / "tasks"
+    _, bundle = begin_mixed_review(module, tasks_root)
+    record_meta_review(
+        module,
+        tasks_root,
+        "alpha",
+        lane="codex",
+        bundle_digest=bundle.digest,
+        stage="passing-lane-assessment",
+        verdict="OBJECT",
+        opinion="The failing verdict is not supported by the reviewed evidence.",
+    )
+
+    status_path = tasks_root / "plan-issues-status.json"
+    status = json.loads(status_path.read_text())
+    entry = status["tasks"]["alpha"]
+    legacy_reconciliation = dict(entry["reconciliation"])
+    legacy_reconciliation["failing_reconsideration"] = legacy_reconciliation.pop(
+        "failing_assessment"
+    )
+    entry["reconciliation"] = legacy_reconciliation
+    entry["state"] = "meta_reconsideration_pending"
+    status_path.write_text(json.dumps(status, indent=2) + "\n")
+
+    aggregate_path = module._aggregate_path(tasks_root, "alpha", bundle.version)
+    aggregate = json.loads(aggregate_path.read_text())
+    aggregate["reconciliation"] = legacy_reconciliation
+    aggregate["state"] = "meta_reconsideration_pending"
+    aggregate_path.write_text(json.dumps(aggregate, indent=2) + "\n")
+
+    migrated = module.refresh_status(tasks_root)
+    migrated_entry = migrated["tasks"]["alpha"]
+    assert migrated_entry["state"] == "meta_review_pending"
+    assert "failing_reconsideration" not in migrated_entry["reconciliation"]
+    assert migrated_entry["reconciliation"]["failing_assessment"] is None
+    assert migrated_entry["reconciliation"]["passing_assessment"]["verdict"] == "OBJECT"
+
+    approved = record_meta_review(
+        module,
+        tasks_root,
+        "alpha",
+        lane="claude",
+        bundle_digest=bundle.digest,
+        stage="failing-lane-assessment",
+        verdict="UPHOLD",
+        opinion="The passing verdict is supported by the reviewed evidence.",
+    )
+    assert approved["state"] == "approved"
+
+
+def test_legacy_pending_migration_launches_both_missing_cross_assessments(
+    tmp_path: Path,
+):
+    module = load_module()
+    tasks_root = tmp_path / "tasks"
+    _, bundle = begin_mixed_review(module, tasks_root)
+
+    status_path = tasks_root / "plan-issues-status.json"
+    status = json.loads(status_path.read_text())
+    entry = status["tasks"]["alpha"]
+    legacy_reconciliation = dict(entry["reconciliation"])
+    legacy_reconciliation["failing_reconsideration"] = legacy_reconciliation.pop(
+        "failing_assessment"
+    )
+    entry["reconciliation"] = legacy_reconciliation
+    status_path.write_text(json.dumps(status, indent=2) + "\n")
+
+    aggregate_path = module._aggregate_path(tasks_root, "alpha", bundle.version)
+    aggregate = json.loads(aggregate_path.read_text())
+    aggregate["reconciliation"] = legacy_reconciliation
+    aggregate_path.write_text(json.dumps(aggregate, indent=2) + "\n")
+
+    migrated = module.refresh_status(tasks_root)
+    migrated_entry = migrated["tasks"]["alpha"]
+    assert migrated_entry["state"] == "meta_review_pending"
+    assert migrated_entry["reconciliation"]["passing_assessment"] is None
+    assert migrated_entry["reconciliation"]["failing_assessment"] is None
+    assert migrated_entry["next_action"] == (
+        "Launch both independent same-digest cross-assessments before waiting."
+    )
+
+
+@pytest.mark.parametrize(
+    ("passing_verdict", "failing_verdict", "expected_state"),
+    [
+        ("OBJECT", "UPHOLD", "approved"),
+        ("UPHOLD", "OBJECT", "changes_required"),
+        ("UPHOLD", "UPHOLD", "changes_required"),
+        ("OBJECT", "OBJECT", "changes_required"),
+    ],
+)
+def test_mixed_verdict_cross_assessments_require_agreement_toward_pass(
+    tmp_path: Path,
+    passing_verdict: str,
+    failing_verdict: str,
+    expected_state: str,
+):
+    module = load_module()
+    tasks_root = tmp_path / "tasks"
+    _, bundle = begin_mixed_review(module, tasks_root)
+
+    first = record_meta_review(
+        module,
+        tasks_root,
+        "alpha",
+        lane="codex",
+        bundle_digest=bundle.digest,
+        stage="passing-lane-assessment",
+        verdict=passing_verdict,
+        opinion="Assessment of the failing lane's verdict.",
+    )
+    assert first["state"] == "meta_review_pending"
+
+    aggregate = record_meta_review(
+        module,
+        tasks_root,
+        "alpha",
+        lane="claude",
+        bundle_digest=bundle.digest,
+        stage="failing-lane-assessment",
+        verdict=failing_verdict,
+        opinion="Assessment of the passing lane's verdict.",
+    )
+
+    assert aggregate["state"] == expected_state
+    status = json.loads((tasks_root / "plan-issues-status.json").read_text())
+    expected_failed_rounds = 0 if expected_state == "approved" else 1
+    assert status["tasks"]["alpha"]["failed_rounds"] == expected_failed_rounds
+
+
 def test_dependency_graph_assigns_parallel_waves_and_later_dependents():
     module = load_module()
 
@@ -362,6 +533,17 @@ def test_bundle_versions_are_task_local_and_next_task_waits_for_current_close(
         opinion="The rollback gate is a material omission.",
         findings=["Preserve the rollback decision as a blocker."],
     )
+    assert aggregate["state"] == "meta_review_pending"
+    aggregate = record_meta_review(
+        module,
+        tasks_root,
+        "alpha",
+        lane="codex",
+        bundle_digest=first.digest,
+        stage="failing-lane-assessment",
+        verdict="OBJECT",
+        opinion="The passing verdict should not stand without the rollback gate.",
+    )
     assert aggregate["state"] == "changes_required"
 
     with pytest.raises(module.WorkflowError, match="current task.*alpha"):
@@ -423,9 +605,9 @@ def test_mixed_verdict_does_not_consume_a_failed_round_before_meta_review(
     assert "claude" in status["tasks"]["alpha"]["next_action"]
 
 
-@pytest.mark.parametrize("advance_to_reconsideration", [False, True])
+@pytest.mark.parametrize("one_assessment_recorded", [False, True])
 def test_pending_meta_review_cannot_be_abandoned_by_rebundling(
-    tmp_path: Path, advance_to_reconsideration: bool
+    tmp_path: Path, one_assessment_recorded: bool
 ):
     module = load_module()
     tasks_root = tmp_path / "tasks"
@@ -451,8 +633,7 @@ def test_pending_meta_review_cannot_be_abandoned_by_rebundling(
         blockers=["missing ownership invariant"],
     )
     module.aggregate_reviews(tasks_root, "alpha")
-    expected_state = "meta_review_pending"
-    if advance_to_reconsideration:
+    if one_assessment_recorded:
         record_meta_review(
             module,
             tasks_root,
@@ -463,14 +644,13 @@ def test_pending_meta_review_cannot_be_abandoned_by_rebundling(
             verdict="OBJECT",
             opinion="The ownership invariant is already explicit.",
         )
-        expected_state = "meta_reconsideration_pending"
 
     with pytest.raises(module.WorkflowError, match="meta-review.*complete"):
         module.build_review_bundle(tasks_root, "alpha", manifest)
 
     status = json.loads((tasks_root / "plan-issues-status.json").read_text())
     entry = status["tasks"]["alpha"]
-    assert entry["state"] == expected_state
+    assert entry["state"] == "meta_review_pending"
     assert entry["current_bundle"]["digest"] == bundle.digest
     assert entry["failed_rounds"] == 0
 
@@ -507,7 +687,7 @@ def test_ordinary_review_verdict_requires_blocker_consistency(
     assert status["tasks"]["alpha"]["reviews"] == {}
 
 
-def test_meta_review_rejects_invalid_role_order_digest_and_artifact_verdict(
+def test_meta_review_rejects_invalid_role_digest_and_artifact_verdict(
     tmp_path: Path,
 ):
     module = load_module()
@@ -525,16 +705,16 @@ def test_meta_review_rejects_invalid_role_order_digest_and_artifact_verdict(
             verdict="UPHOLD",
             opinion="Invalid role.",
         )
-    with pytest.raises(module.WorkflowError, match="requires a passing-lane OBJECT"):
+    with pytest.raises(module.WorkflowError, match="only the failing lane"):
         record_meta_review(
             module,
             tasks_root,
             "alpha",
-            lane="claude",
+            lane="codex",
             bundle_digest=bundle.digest,
-            stage="failing-lane-reconsideration",
+            stage="failing-lane-assessment",
             verdict="UPHOLD",
-            opinion="Invalid order.",
+            opinion="Invalid role.",
         )
     with pytest.raises(module.WorkflowError, match="digest does not match"):
         record_meta_review(
@@ -588,17 +768,17 @@ def test_meta_review_rejects_invalid_role_order_digest_and_artifact_verdict(
         verdict="UPHOLD",
         opinion="The failing verdict is correct.",
     )
-    with pytest.raises(module.WorkflowError, match="requires a passing-lane OBJECT"):
-        record_meta_review(
-            module,
-            tasks_root,
-            "alpha",
-            lane="claude",
-            bundle_digest=bundle.digest,
-            stage="failing-lane-reconsideration",
-            verdict="OBJECT",
-            opinion="Reconsideration is not allowed after UPHOLD.",
-        )
+    aggregate = record_meta_review(
+        module,
+        tasks_root,
+        "alpha",
+        lane="claude",
+        bundle_digest=bundle.digest,
+        stage="failing-lane-assessment",
+        verdict="OBJECT",
+        opinion="The passing verdict should not stand.",
+    )
+    assert aggregate["state"] == "changes_required"
 
 
 def test_meta_review_duplicates_are_idempotent_and_conflicts_are_rejected(
@@ -654,7 +834,7 @@ def test_meta_review_duplicates_are_idempotent_and_conflicts_are_rejected(
         )
 
 
-def test_passing_lane_objection_and_failing_lane_pass_closes_the_gate(tmp_path: Path):
+def test_cross_assessments_that_agree_to_pass_close_the_gate(tmp_path: Path):
     module = load_module()
     tasks_root = tmp_path / "tasks"
     module.initialize_conversion(tasks_root, definitions(("alpha", ())))
@@ -691,7 +871,7 @@ def test_passing_lane_objection_and_failing_lane_pass_closes_the_gate(tmp_path: 
         opinion="The explicit retry bound is already present in the bundle.",
         findings=["The cited section satisfies the invariant."],
     )
-    assert pending["state"] == "meta_reconsideration_pending"
+    assert pending["state"] == "meta_review_pending"
 
     aggregate = record_meta_review(
         module,
@@ -699,15 +879,15 @@ def test_passing_lane_objection_and_failing_lane_pass_closes_the_gate(tmp_path: 
         "alpha",
         lane="claude",
         bundle_digest=bundle.digest,
-        stage="failing-lane-reconsideration",
-        verdict="OBJECT",
-        opinion="I accept the cited evidence and withdraw the blocker.",
+        stage="failing-lane-assessment",
+        verdict="UPHOLD",
+        opinion="The passing verdict is supported by the cited evidence.",
     )
 
     assert aggregate["state"] == "approved"
     assert {lane["verdict"] for lane in aggregate["lanes"].values()} == {"APPROVED"}
     assert aggregate["reconciliation"]["passing_assessment"]["verdict"] == "OBJECT"
-    assert aggregate["reconciliation"]["failing_reconsideration"]["verdict"] == "OBJECT"
+    assert aggregate["reconciliation"]["failing_assessment"]["verdict"] == "UPHOLD"
     assert (tasks_root / "alpha" / "reviews" / "final-review.json").is_file()
 
 
@@ -754,8 +934,8 @@ def test_persistent_disagreement_starts_a_new_dual_lane_round_with_meta_context(
         "alpha",
         lane="codex",
         bundle_digest=bundle.digest,
-        stage="failing-lane-reconsideration",
-        verdict="UPHOLD",
+        stage="failing-lane-assessment",
+        verdict="OBJECT",
         opinion="The wording still does not constrain partial rollback.",
         findings=["Clarify partial rollback semantics."],
     )

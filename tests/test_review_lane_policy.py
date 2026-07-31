@@ -238,15 +238,36 @@ def test_required_multi_lane_reviews_launch_before_waiting():
         assert contract in path.read_text().lower(), path
 
 
-def test_mixed_two_lane_verdicts_use_reviewer_to_reviewer_meta_reconciliation():
+def test_mixed_two_lane_verdicts_use_symmetric_reviewer_cross_assessment():
     for path in TWO_LANE_RECONCILIATION_FILES:
         content = path.read_text().lower()
         assert "meta-review" in content, path
+        assert "cross-assessments" in content, path
+        assert "before waiting" in content, path
         assert "passing lane" in content, path
         assert "failing lane" in content, path
         assert "`uphold`" in content, path
         assert "`object`" in content, path
+        assert "passing-lane `object`" in content, path
+        assert "failing-lane `uphold`" in content, path
         assert "next dual-lane round" in content, path
+
+
+def test_two_lane_policy_has_no_sequential_reconsideration_contract():
+    retired = (
+        "failing-lane reconsideration",
+        "failing_lane_reconsideration",
+        "meta_reconsideration_pending",
+        "passing-lane `object` then failing-lane `object`",
+        "passing-lane `object` → failing-lane `object`",
+    )
+    violations = [
+        f"{path.relative_to(ROOT)}: {phrase}"
+        for path in TWO_LANE_RECONCILIATION_FILES
+        for phrase in retired
+        if phrase in path.read_text().lower()
+    ]
+    assert not violations, "\n".join(violations)
 
 
 def test_two_lane_review_limit_is_six_rounds_excluding_meta_reviews():
