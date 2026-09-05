@@ -101,8 +101,8 @@ AUTOMATIC_FALLBACK_CLAIM = re.compile(
     re.IGNORECASE,
 )
 
-FABLE_PRIMARY_COMMAND = "claude --model fable --effort xhigh"
-OPUS_FALLBACK_COMMAND = "claude --model opus --effort xhigh"
+FABLE_PRIMARY_COMMAND = "claude --model claude-fable-5-1 --effort xhigh"
+OPUS_FALLBACK_COMMAND = "claude --model claude-opus-4-8 --effort xhigh"
 
 PRINT_MODE_MENTION = re.compile(r"claude\s+-p\b|`?--print`?", re.IGNORECASE)
 

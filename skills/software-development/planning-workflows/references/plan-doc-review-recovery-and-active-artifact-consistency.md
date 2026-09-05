@@ -17,7 +17,7 @@ Use this when a required `plan-doc` review leg returns useful non-blocking sugge
 
 3. **Recover completed interactive reviews instead of rerunning blindly.**
    - A started tmux/TUI session is not approval, but its pane or saved transcript may contain a complete verdict.
-   - For Codex, inspect the managed tmux session and capture a wide pane window; require the current bundle identity, GPT-5.6 SOL @ xhigh attestation, and explicit parseable verdict.
+   - For Codex, inspect the managed tmux session and capture a wide pane window; require the current bundle identity, GPT-6 Astra @ xhigh attestation, and explicit parseable verdict.
    - Save the raw pane and normalized verdict with the recovery path. If no complete verdict is recoverable, rerun bare interactive `codex` against the same current bundle; never substitute `delegate_task`, `codex exec`, or `codex review`.
 
 4. **Defend bundles against terminal redaction.**

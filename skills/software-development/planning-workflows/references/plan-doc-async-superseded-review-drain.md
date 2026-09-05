@@ -22,7 +22,7 @@ Use when an older review result returns after the live task docs have moved to a
 ## Current interactive Codex finalization checklist
 
 1. Recover the managed tmux session and save its raw pane plus normalized verdict before writing the aggregate.
-2. Prove it reviewed the current bundle by matching bundle path/hash and verify the GPT-5.6 SOL @ xhigh banner attestation. If docs or bundle changed after launch, classify the verdict as stale and rerun both required lanes.
+2. Prove it reviewed the current bundle by matching bundle path/hash and verify the GPT-6 Astra @ xhigh banner attestation. If docs or bundle changed after launch, classify the verdict as stale and rerun both required lanes.
 3. If Codex passes and the Claude Code artifact for the same bundle is already saved, write `plan-review.json` and update the pending artifact to completed rather than leaving it active.
 4. Review artifacts written after verdicts do not normally stale the product bundle when they are explicitly excluded as evidence-only files.
 5. If any substantive task document changes after a finding, all approvals are stale and both lanes must rerun.

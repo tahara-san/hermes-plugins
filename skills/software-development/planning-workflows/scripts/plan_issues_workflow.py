@@ -48,14 +48,21 @@ _PLAN_PATH = re.compile(r"`(?P<path>[^`\n]+)`")
 _REVIEW_ATTESTATIONS = {
     "codex": {
         "reviewer_mode": "interactive-codex-tui",
-        "model": "gpt-5.6-sol",
+        "model": "gpt-6-astra",
         "effort": "xhigh",
     },
     "claude": {
         "reviewer_mode": "interactive-claude-code",
-        "model": "claude-opus-4-8",
+        "model": "claude-fable-5-1",
         "effort": "xhigh",
     },
+}
+
+# The primary Claude lane is Fable 5.1. The only accepted alternate is the
+# explicitly relaunched interactive Opus fallback documented by the skills.
+_REVIEW_ACCEPTED_MODELS = {
+    "codex": frozenset({"gpt-6-astra"}),
+    "claude": frozenset({"claude-fable-5-1", "claude-opus-4-8"}),
 }
 
 
@@ -1143,6 +1150,15 @@ def _validate_review_attestation(
         "effort": effort,
     }
     for key, expected_value in expected.items():
+        if key == "model":
+            accepted_models = _REVIEW_ACCEPTED_MODELS[lane]
+            if supplied[key] not in accepted_models:
+                accepted = ", ".join(sorted(accepted_models))
+                raise WorkflowError(
+                    f"{lane} reviewer attestation requires model={expected_value} "
+                    f"or an explicitly accepted fallback ({accepted})"
+                )
+            continue
         if supplied[key] != expected_value:
             raise WorkflowError(
                 f"{lane} reviewer attestation requires {key}={expected_value}"
@@ -1187,6 +1203,15 @@ def _validate_meta_review_attestation(
         "effort": effort,
     }
     for key, expected_value in expected.items():
+        if key == "model":
+            accepted_models = _REVIEW_ACCEPTED_MODELS[lane]
+            if supplied[key] not in accepted_models:
+                accepted = ", ".join(sorted(accepted_models))
+                raise WorkflowError(
+                    f"{lane} meta-reviewer attestation requires model={expected_value} "
+                    f"or an explicitly accepted fallback ({accepted})"
+                )
+            continue
         if supplied[key] != expected_value:
             raise WorkflowError(
                 f"{lane} meta-reviewer attestation requires {key}={expected_value}"

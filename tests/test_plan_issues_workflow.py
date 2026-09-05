@@ -1542,11 +1542,11 @@ def test_review_recording_requires_pinned_artifact_attestation(tmp_path: Path):
     artifact.parent.mkdir(parents=True)
     artifact.write_text(
         f"BEGIN_REVIEW_RESULT\nBUNDLE_SHA256: {bundle.digest}\n"
-        "REVIEWER_MODE: interactive-codex-tui\nMODEL: gpt-5.6-sol\n"
+        "REVIEWER_MODE: interactive-codex-tui\nMODEL: gpt-6-astra\n"
         "EFFORT: xhigh\nVERDICT: PASS\nEND_REVIEW_RESULT\n"
     )
 
-    with pytest.raises(module.WorkflowError, match="requires model=gpt-5.6-sol"):
+    with pytest.raises(module.WorkflowError, match="requires model=gpt-6-astra"):
         module.record_review(
             tasks_root,
             "alpha",

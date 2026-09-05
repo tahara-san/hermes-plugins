@@ -5,7 +5,7 @@ Use this reference for every Codex review leg in `plan-doc`, `plan-code`, `plan-
 ## Required contract
 
 - The reviewer is the local **Codex interactive TUI** running as bare `codex` in a managed `tmux` session, not a Hermes `delegate_task` reviewer.
-- The required model is **GPT-5.6 SOL**, passed as `--model gpt-5.6-sol`.
+- The required model is **GPT-6 Astra**, passed as `--model gpt-6-astra`.
 - The required reasoning effort is **xhigh**, passed as `-c 'model_reasoning_effort="xhigh"'`.
 - Run read-only against an immutable, self-contained review bundle.
 - Save a raw interactive-pane capture and a normalized final verdict as separate artifacts.
@@ -30,7 +30,7 @@ Before launching the substantive review:
 4. Require a bounded read-only review: no edits, no test/build/lint runs, and no long-running commands. Supply existing verification evidence in the bundle.
 5. Pick a unique, task-scoped tmux session name. Before reuse, inspect and close stale Codex review sessions for the same repository so queued prompts cannot affect the new review.
 
-Do not probe by changing the requested model or effort. If Codex authentication, GPT-5.6 SOL, or xhigh effort is unavailable, the lane is blocked unless the user explicitly waives that lane.
+Do not probe by changing the requested model or effort. If Codex authentication, GPT-6 Astra, or xhigh effort is unavailable, the lane is blocked unless the user explicitly waives that lane.
 
 ## Required interactive invocation
 
@@ -39,7 +39,7 @@ Hermes uses `terminal` only to create and control the short-lived `tmux` command
 ```bash
 tmux new-session -d -s "$CODEX_SESSION" -c "$REPO_ROOT" -x 160 -y 48
 tmux send-keys -t "$CODEX_SESSION" \
-  "codex --strict-config --model gpt-5.6-sol -c 'model_reasoning_effort=\"xhigh\"' --sandbox read-only --ask-for-approval untrusted --no-alt-screen" \
+  "codex --strict-config --model gpt-6-astra -c 'model_reasoning_effort=\"xhigh\"' --sandbox read-only --ask-for-approval untrusted --no-alt-screen" \
   Enter
 ```
 
@@ -112,7 +112,7 @@ Monitor with repeated, bounded `tmux capture-pane` calls. If Codex keeps explori
 
 A passing Codex lane requires all of the following:
 
-1. The interactive session startup capture and final capture attest the requested `gpt-5.6-sol` model and `xhigh` reasoning effort. If the TUI no longer exposes equivalent evidence, save the pane output that does and do not infer it from the launch command alone.
+1. The interactive session startup capture and final capture attest the requested `gpt-6-astra` model and `xhigh` reasoning effort. If the TUI no longer exposes equivalent evidence, save the pane output that does and do not infer it from the launch command alone.
 2. Hermes saves the raw, sufficiently complete pane capture immediately after the explicit verdict. A clipped pane, an unfinished spinner, or a prompt without the verdict block is incomplete, not approval.
 3. Hermes normalizes the explicit verdict into the required artifact and validates it against the requested JSON schema when the workflow provides one. Do not call a noninteractive Codex command merely to obtain structured output.
 4. The normalized artifact identifies the reviewed bundle path or hash, is passing, and has no blocking security, correctness, or logic findings.
@@ -126,7 +126,7 @@ The aggregate review artifact should record at least:
 
 - lane: `codex-interactive`
 - Codex CLI version
-- model: `gpt-5.6-sol`
+- model: `gpt-6-astra`
 - reasoning effort: `xhigh`
 - tmux session name
 - bundle path and hash

@@ -1,6 +1,6 @@
 ---
 name: plan-doc
-description: Use when the user wants Hermes to create task planning documents before implementation (Claude Code /plan-doc style). Produces tasks/<task-name>/spec.md plus todo.md or phase TODOs, with decision gates, dependency/parallelization analysis, manual-handling notes, simplify review, and the default parallel Codex interactive TUI GPT-5.6 SOL @ xhigh review + Claude Code Fable 5 @ xhigh effort (`claude-i`) review gate preserved for Hermes workflows.
+description: Use when the user wants Hermes to create task planning documents before implementation (Claude Code /plan-doc style). Produces tasks/<task-name>/spec.md plus todo.md or phase TODOs, with decision gates, dependency/parallelization analysis, manual-handling notes, simplify review, and the default parallel Codex interactive TUI GPT-6 Astra @ xhigh review + Claude Code Fable 5.1 @ xhigh effort (`claude-i`) review gate preserved for Hermes workflows.
 version: 1.2.0
 author: Hermes Agent (migrated from Claude Code planner plugin)
 license: MIT
@@ -152,7 +152,7 @@ Implementation workflow must preserve this sequence:
 
 1. Implement a serial phase or a documented parallel batch.
 2. Run `simplify` on changed files and apply worthwhile simplifications. Broad simplify runs before the first review freeze; after review, simplify only the blocker fix and its affected scope.
-3. Build one immutable review bundle, then run Codex interactive TUI GPT-5.6 SOL @ xhigh review and Claude Code Fable 5 @ xhigh effort (`claude-i`) review against that same bundle, launching both before waiting on either lane.
+3. Build one immutable review bundle, then run Codex interactive TUI GPT-6 Astra @ xhigh review and Claude Code Fable 5.1 @ xhigh effort (`claude-i`) review against that same bundle, launching both before waiting on either lane.
 4. Disposition every reviewer item using the blocker predicate in `../review-finding-disposition-and-convergence.md`, and remediate only confirmed blockers. Advisory, insignificant, unsupported, duplicate, and out-of-scope findings get a recorded disposition and no source edit.
 5. Repeat simplify -> review only after a blocker fix changes judged-product bytes. Advisory-only reviewer output closes the gate. Limit the gate to **six dual-lane review rounds**; meta-reviews do not count. After an unresolved ordinary round, enter convergence behavior and continue only with confirmed blocker remediation.
 6. Run build/tests using project-appropriate commands.
@@ -169,8 +169,8 @@ Small plan: `tasks/<task-name>/todo.md`
 
 ## Verification
 - [ ] All tasks above completed
-- [ ] Per-phase simplify -> default parallel Codex interactive TUI GPT-5.6 SOL @ xhigh review + Claude Code Fable 5 @ xhigh effort (`claude-i`) review passes
-- [ ] Holistic simplify -> default parallel Codex interactive TUI GPT-5.6 SOL @ xhigh review + Claude Code Fable 5 @ xhigh effort (`claude-i`) review passes (skip if single-phase)
+- [ ] Per-phase simplify -> default parallel Codex interactive TUI GPT-6 Astra @ xhigh review + Claude Code Fable 5.1 @ xhigh effort (`claude-i`) review passes
+- [ ] Holistic simplify -> default parallel Codex interactive TUI GPT-6 Astra @ xhigh review + Claude Code Fable 5.1 @ xhigh effort (`claude-i`) review passes (skip if single-phase)
 - [ ] Project build/test verification passes
 
 ---
@@ -194,8 +194,8 @@ Small plan: `tasks/<task-name>/todo.md`
 - [ ] Every planned phase/task has been implemented or explicitly marked blocked by an unresolved user/manual/external decision.
 - [ ] All `todo.md` / `todo-phase-N.md` files have been audited for unchecked executable items after the final code change.
 - [ ] `progress.md` (if present) matches the task files and current code state.
-- [ ] Per-phase or per-batch simplify -> default parallel Codex interactive TUI GPT-5.6 SOL @ xhigh review + Claude Code Fable 5 @ xhigh effort (`claude-i`) review gates are complete.
-- [ ] Holistic simplify -> default parallel Codex interactive TUI GPT-5.6 SOL @ xhigh review + Claude Code Fable 5 @ xhigh effort (`claude-i`) review is complete after the last code change.
+- [ ] Per-phase or per-batch simplify -> default parallel Codex interactive TUI GPT-6 Astra @ xhigh review + Claude Code Fable 5.1 @ xhigh effort (`claude-i`) review gates are complete.
+- [ ] Holistic simplify -> default parallel Codex interactive TUI GPT-6 Astra @ xhigh review + Claude Code Fable 5.1 @ xhigh effort (`claude-i`) review is complete after the last code change.
 - [ ] Final project verification commands have passed, or any unfixable external blocker is documented with evidence.
 - [ ] Requested task-file cleanup has run only after the completion audit passes.
 - [ ] If a resource limit or context compression interrupts execution, the continuation prompt reloads the task files and resumes from unchecked items instead of relying on memory.
@@ -211,9 +211,9 @@ Before reporting completion, run simplification and the default parallel review 
 
 1. Use the `simplify` skill to check whether the plan can be narrower, clearer, or less coupled.
 2. Build one immutable plan-doc review bundle containing the task docs, relevant current-code context, package/test-script context, `git status --short`, and relevant untracked task files.
-3. Preflight both reviewer CLIs and prepare separate task-scoped tmux sessions/prompts. The Codex lane must use bare `codex` with GPT-5.6 SOL @ xhigh, pane-capture attestation, a schema-constrained normalized verdict, and the fail-closed rules in `../codex-cli-review-lane.md`; never use noninteractive `codex exec`, `codex review`, or a Hermes `delegate_task` fallback. The Claude lane must use interactive `claude-i` with `claude --model fable --effort xhigh` and a TUI banner/status verified before the substantive prompt; never `claude -p` / `--print`. Interactive Claude Code has no automatic model fallback, so an unavailable or overloaded Fable requires preserving the failed session evidence, closing/superseding it, relaunching a fresh interactive session on the same bundle with `claude --model opus --effort xhigh` before waiting on or adjudicating the companion Codex lane, and recording which model actually performed the review.
+3. Preflight both reviewer CLIs and prepare separate task-scoped tmux sessions/prompts. The Codex lane must use bare `codex` with GPT-6 Astra @ xhigh, pane-capture attestation, a schema-constrained normalized verdict, and the fail-closed rules in `../codex-cli-review-lane.md`; never use noninteractive `codex exec`, `codex review`, or a Hermes `delegate_task` fallback. The Claude lane must use interactive `claude-i` with `claude --model claude-fable-5-1 --effort xhigh` and a TUI banner/status verified before the substantive prompt; never `claude -p` / `--print`. Interactive Claude Code has no automatic model fallback, so an unavailable or overloaded Fable requires preserving the failed session evidence, closing/superseding it, relaunching a fresh interactive session on the same bundle with `claude --model claude-opus-4-8 --effort xhigh` before waiting on or adjudicating the companion Codex lane, and recording which model actually performed the review.
 4. Launch every required independent review lane before waiting for, polling, monitoring, adjudicating, or fixing findings from any one lane. Submit the same immutable-bundle review prompt to both tmux sessions before monitoring either reviewer. Do not run Codex to completion and only then launch Claude Code, or vice versa. If a lane cannot launch, document the blocker and treat the gate as blocked unless the user waives that lane.
-5. Save separate Codex interactive TUI GPT-5.6 SOL @ xhigh review and Claude Code Fable 5 @ xhigh effort (`claude-i`) review artifacts plus one aggregate verdict under `tasks/<task-name>/reviews/`. The aggregate artifact must record bundle path, reviewer tool/model, both verdicts, static-scan status if applicable, verification status if applicable, and timestamp.
+5. Save separate Codex interactive TUI GPT-6 Astra @ xhigh review and Claude Code Fable 5.1 @ xhigh effort (`claude-i`) review artifacts plus one aggregate verdict under `tasks/<task-name>/reviews/`. The aggregate artifact must record bundle path, reviewer tool/model, both verdicts, static-scan status if applicable, verification status if applicable, and timestamp.
 6. Classify every reviewer item with the blocker predicate in `../review-finding-disposition-and-convergence.md` and record exactly one disposition per item (`remediate-now`, `park-follow-up`, `accept-no-action`, `reject-unsupported`, `duplicate`, `out-of-scope`) in a round ledger saved under `tasks/<task-name>/reviews/`. Revise the plan docs only for `remediate-now` blockers — findings that are grounded, concrete, contract-relevant, and material to execution safety, required verification, authorization/data-integrity behavior, in-scope contracts, or a missing decision that would force the implementer to invent material behavior. Wording is blocking only when it can cause unsafe implementation, incorrect commands, wrong authorization behavior, or data loss. Cosmetic polish, optional readability, extra hardening beyond adequate coverage, speculation, and rephrased repeats are parked, not applied.
 7. If a blocker fix changes the plan docs, regenerate the bundle and rerun both review legs so the final report is not based on stale review artifacts. If both lanes pass with advisory-only findings, the plan is reviewed: do not touch the docs, do not regenerate the bundle, and do not rerun a lane. Writing the disposition ledger and review artifacts is review-evidence, not a plan-doc change, and never stales the approval.
 8. If either reviewer times out, wedges, returns an incomplete/unparseable verdict, emits a preamble before the verdict block, cannot attest the required model/effort, or cannot inspect the intended scope, that leg is `BLOCKED_PROCESS`: fail closed and retry with a narrower bundle when practical. Process failures are never parked or downgraded to advisory. Default to one fresh retry per lane/bundle; a second failure stops for explicit user resume/override. Do not claim the plan "passed" review unless both legs pass or the user explicitly waives one.
@@ -233,7 +233,7 @@ Tell the user:
 4. Decisions captured (`Q -> A`) and provenance.
 5. Manual-handling notes.
 6. Dependency & parallelization assessment, including parallel groups or serial dependency rationale.
-- Confirmation that plan docs passed simplify + default parallel Codex interactive TUI GPT-5.6 SOL @ xhigh review + Claude Code Fable 5 @ xhigh effort (`claude-i`) review, including the aggregate review artifact path, or a concise note that a required review leg was blocked/waived.
+- Confirmation that plan docs passed simplify + default parallel Codex interactive TUI GPT-6 Astra @ xhigh review + Claude Code Fable 5.1 @ xhigh effort (`claude-i`) review, including the aggregate review artifact path, or a concise note that a required review leg was blocked/waived.
 
 ### Step 9: Emit Kickoff Prompt
 
@@ -242,7 +242,7 @@ End every ready-plan `/plan-doc` response with a copy-pasteable prompt. This app
 End with a copy-pasteable prompt:
 
 ```text
-/goal Complete tasks/<task-name> end-to-end: execute every unchecked task/phase, run any documented independent phases/tasks in parallel, run simplify and the default parallel Codex interactive TUI GPT-5.6 SOL @ xhigh review + Claude Code Fable 5 @ xhigh effort (`claude-i`) review gates, remediate confirmed blocking findings and record a disposition for every other finding without mutating judged bytes, run verification, and clean up requested task files. Keep pushing forward without pausing between phases; stop only for unresolved user decisions, manual-handling requirements, unfixable verification failures, user interruption, a review gate that has not converged within its remediation budget, or an infrastructure resource limit that prevents further tool calls.
+/goal Complete tasks/<task-name> end-to-end: execute every unchecked task/phase, run any documented independent phases/tasks in parallel, run simplify and the default parallel Codex interactive TUI GPT-6 Astra @ xhigh review + Claude Code Fable 5.1 @ xhigh effort (`claude-i`) review gates, remediate confirmed blocking findings and record a disposition for every other finding without mutating judged bytes, run verification, and clean up requested task files. Keep pushing forward without pausing between phases; stop only for unresolved user decisions, manual-handling requirements, unfixable verification failures, user interruption, a review gate that has not converged within its remediation budget, or an infrastructure resource limit that prevents further tool calls.
 
 /plan-code @tasks/<task-name>
 
@@ -251,7 +251,7 @@ End with a copy-pasteable prompt:
 - After every phase or parallel batch, immediately update the task TODO/progress files and session TODO state.
 - Before final review, final verification, and cleanup, audit all task files for unchecked executable items; continue until none remain.
 - If context compression or tool-call limits interrupt execution, the next run must reload `tasks/<task-name>/spec.md`, `progress.md`, and all TODO files, then resume from unchecked items.
-- Push through to final completion of all planned work, simplify/review loops, default parallel Codex interactive TUI GPT-5.6 SOL @ xhigh review + Claude Code Fable 5 @ xhigh effort (`claude-i`) review gates, verification, and requested cleanup under the `/goal` above.
+- Push through to final completion of all planned work, simplify/review loops, default parallel Codex interactive TUI GPT-6 Astra @ xhigh review + Claude Code Fable 5.1 @ xhigh effort (`claude-i`) review gates, verification, and requested cleanup under the `/goal` above.
 - Remove the task files after completing the task.
 - Do not create migration/backward-compatibility code unless explicitly requested.
 ```
@@ -267,6 +267,6 @@ Do not start implementation in `plan-doc`.
 - Treating every reviewer observation as mandatory remediation. Applying an advisory-only note stales the exact-byte approval and forces both xhigh lanes to reread the whole bundle; classify with the blocker predicate first and park what fails it. See `../review-finding-disposition-and-convergence.md`.
 - Editing plan docs just to record that a finding was parked. The disposition ledger belongs in the review-evidence plane under `tasks/<task-name>/reviews/`, not in `spec.md` or the TODO files.
 - Silently choosing an architectural/API decision that should be surfaced.
-- Treating Codex authentication/model/effort failures as permission to substitute a Hermes reviewer. The external Codex interactive TUI GPT-5.6 SOL @ xhigh lane is required unless explicitly waived; Claude Code remains the separate CLI-based `claude-i` lane.
+- Treating Codex authentication/model/effort failures as permission to substitute a Hermes reviewer. The external Codex interactive TUI GPT-6 Astra @ xhigh lane is required unless explicitly waived; Claude Code remains the separate CLI-based `claude-i` lane.
 - Putting vague TODOs like "fix errors" instead of atomic file/function-level tasks.
 - Starting code implementation after writing the plan.

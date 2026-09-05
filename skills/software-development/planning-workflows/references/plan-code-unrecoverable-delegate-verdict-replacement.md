@@ -11,7 +11,7 @@ Use this when a mandatory `plan-code` interactive Codex TUI session appears to f
 
 ## Rule
 
-Session completion is not approval. A mandatory review gate requires a parseable saved verdict tied to the finalized bundle, raw pane evidence, and the GPT-5.6 SOL @ xhigh attestation—or an explicit user waiver. Do not infer or reconstruct a verdict from timing, partial pane text, or an exit status.
+Session completion is not approval. A mandatory review gate requires a parseable saved verdict tied to the finalized bundle, raw pane evidence, and the GPT-6 Astra @ xhigh attestation—or an explicit user waiver. Do not infer or reconstruct a verdict from timing, partial pane text, or an exit status.
 
 ## Recovery sequence
 

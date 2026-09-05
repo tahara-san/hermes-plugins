@@ -159,8 +159,8 @@ There is no generate-all default. `--slug` is mandatory. Version discovery scans
 
 For the current task only, launch every required independent review lane before waiting:
 
-- Codex interactive TUI GPT-5.6 SOL/xhigh in managed `tmux`, following `../codex-cli-review-lane.md`;
-- interactive Claude Code Fable 5/xhigh via `claude-i`.
+- Codex interactive TUI GPT-6 Astra/xhigh in managed `tmux`, following `../codex-cli-review-lane.md`;
+- interactive Claude Code Fable 5.1/xhigh via `claude-i`.
 
 Both lanes must review the exact immutable digest and return structured hash-bound verdicts. Preserve each complete raw pane/session transcript under the current task's `reviews/raw/` tree. Arbitrary transcript text may surround the result, but there must be exactly one canonical block and no duplicate, conflicting, unknown, missing, or malformed fields:
 
@@ -168,7 +168,7 @@ Both lanes must review the exact immutable digest and return structured hash-bou
 BEGIN_REVIEW_RESULT
 BUNDLE_SHA256: <64-character lowercase SHA-256>
 REVIEWER_MODE: <exact pinned mode>
-MODEL: <exact pinned model>
+MODEL: <exact Fable 5.1 model or explicitly relaunched Opus fallback model>
 EFFORT: xhigh
 VERDICT: PASS | CHANGES_REQUIRED
 END_REVIEW_RESULT
@@ -187,7 +187,7 @@ python3 <skill-dir>/scripts/plan_issues_workflow.py record-review \
   --verdict APPROVED \
   --reviewer-artifact tasks/api-contract/reviews/raw/v1-codex.txt \
   --reviewer-mode interactive-codex-tui \
-  --model gpt-5.6-sol \
+  --model gpt-6-astra \
   --effort xhigh
 
 python3 <skill-dir>/scripts/plan_issues_workflow.py record-review \
@@ -198,13 +198,13 @@ python3 <skill-dir>/scripts/plan_issues_workflow.py record-review \
   --verdict CHANGES_REQUIRED \
   --reviewer-artifact tasks/api-contract/reviews/raw/v1-claude.txt \
   --reviewer-mode interactive-claude-code \
-  --model claude-opus-4-8 \
+  --model claude-fable-5-1 \
   --effort xhigh \
   --blocker "Missing rollback decision gate" \
   --non-blocking "Consider an implementation-time edge test"
 ```
 
-The helper rejects an unpinned model/effort/mode, a raw artifact outside the task-local review tree, an artifact that does not attest the exact digest and verdict, or a raw artifact modified after verdict recording. It also rehashes the immutable bundle before recording or aggregating. Do not edit after the first lane returns when the companion result can still be collected. The helper refuses a replacement bundle while exactly one current-bundle ordinary lane is saved.
+The helper requires the primary `claude-fable-5-1` model for the Claude lane, or the exact `claude-opus-4-8` model only when an explicit fresh-session fallback actually ran. It rejects any other model/effort/mode, a raw artifact outside the task-local review tree, an artifact that does not attest the exact digest and verdict, or a raw artifact modified after verdict recording. It also rehashes the immutable bundle before recording or aggregating. Do not edit after the first lane returns when the companion result can still be collected. The helper refuses a replacement bundle while exactly one current-bundle ordinary lane is saved.
 
 For a mixed ordinary result, meta-review artifacts use exactly one block:
 
@@ -212,7 +212,7 @@ For a mixed ordinary result, meta-review artifacts use exactly one block:
 BEGIN_META_REVIEW_RESULT
 BUNDLE_SHA256: <same 64-character lowercase SHA-256>
 REVIEWER_MODE: <exact pinned mode>
-MODEL: <exact pinned model>
+MODEL: <exact Fable 5.1 model or explicitly relaunched Opus fallback model>
 EFFORT: xhigh
 STAGE: PASSING_LANE_ASSESSMENT | FAILING_LANE_ASSESSMENT
 VERDICT: UPHOLD | OBJECT
@@ -232,7 +232,7 @@ python3 <skill-dir>/scripts/plan_issues_workflow.py record-meta-review \
   --opinion "The alleged blocker does not violate the stated contract" \
   --reviewer-artifact tasks/api-contract/reviews/raw/v1-codex-assessment.txt \
   --reviewer-mode interactive-codex-tui \
-  --model gpt-5.6-sol \
+  --model gpt-6-astra \
   --effort xhigh
 
 python3 <skill-dir>/scripts/plan_issues_workflow.py record-meta-review \
@@ -245,7 +245,7 @@ python3 <skill-dir>/scripts/plan_issues_workflow.py record-meta-review \
   --opinion "The passing verdict is supported by the stated contract" \
   --reviewer-artifact tasks/api-contract/reviews/raw/v1-claude-assessment.txt \
   --reviewer-mode interactive-claude-code \
-  --model claude-opus-4-8 \
+  --model claude-fable-5-1 \
   --effort xhigh
 ```
 
